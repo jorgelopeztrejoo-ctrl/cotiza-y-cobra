@@ -1,0 +1,1351 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Calculadora de costos, cotizaciones formales en PDF y control de facturas para servicios técnicos.">
+<title>Cotiza y Cobra</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{
+  --bg:#ECEEE9; --surface:#FBFCF9; --surface2:#F3F5F0; --ink:#17201D; --ink2:#4B5852; --ink3:#78847E;
+  --line:#D3D9D1; --line2:#E4E8E2;
+  --accent:#2B6A4E; --accent-ink:#FFFFFF; --accent-soft:#DCEAE1; --mark:#E0AE34; --mark-ink:#3A2C06;
+  --ok:#2A7A4B; --ok-soft:#DCEFE2; --warn:#9A6210; --warn-soft:#F6E8C9; --bad:#AE2A20; --bad-soft:#F6DAD6;
+  --seg-mo:#2B6A4E; --seg-mat:#5E8EA6; --seg-otros:#8E8663; --seg-ind:#AEB8B1; --seg-imp:#CDB88A; --seg-util:#E0AE34;
+  --paper:#FFFFFF; --paper-ink:#1A221F; --paper-soft:#F1F4F0; --paper-line:#D9DED7; --paper-accent:#2B6A4E;
+  --shadow:0 1px 2px rgba(23,32,29,.06),0 4px 16px rgba(23,32,29,.06);
+  --f-display:"Barlow Semi Condensed","Arial Narrow",Arial,sans-serif;
+  --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#111513; --surface:#191F1C; --surface2:#1F2622; --ink:#E4E9E4; --ink2:#AAB5AF; --ink3:#7D8983;
+    --line:#2E3733; --line2:#252D29;
+    --accent:#6DBE93; --accent-ink:#0C1F15; --accent-soft:#1E3529; --mark:#E8BB4C; --mark-ink:#2A2003;
+    --ok:#73C795; --ok-soft:#1C3325; --warn:#E3B45C; --warn-soft:#3A2E16; --bad:#F08A7E; --bad-soft:#3D1F1C;
+    --seg-mo:#6DBE93; --seg-mat:#7FB2CB; --seg-otros:#B3A97E; --seg-ind:#5C6862; --seg-imp:#8F7F58; --seg-util:#E8BB4C;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 16px rgba(0,0,0,.25);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#111513; --surface:#191F1C; --surface2:#1F2622; --ink:#E4E9E4; --ink2:#AAB5AF; --ink3:#7D8983;
+  --line:#2E3733; --line2:#252D29;
+  --accent:#6DBE93; --accent-ink:#0C1F15; --accent-soft:#1E3529; --mark:#E8BB4C; --mark-ink:#2A2003;
+  --ok:#73C795; --ok-soft:#1C3325; --warn:#E3B45C; --warn-soft:#3A2E16; --bad:#F08A7E; --bad-soft:#3D1F1C;
+  --seg-mo:#6DBE93; --seg-mat:#7FB2CB; --seg-otros:#B3A97E; --seg-ind:#5C6862; --seg-imp:#8F7F58; --seg-util:#E8BB4C;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 16px rgba(0,0,0,.25);
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;margin:0}
+.wrap{max-width:1240px;margin:0 auto;padding-inline:20px;padding-block:0 48px}
+h1,h2,h3{font-family:var(--f-display);font-weight:600;line-height:1.15;text-wrap:balance;margin:0}
+h2{font-size:1.35rem}
+h3{font-size:1.1rem}
+p{margin:0}
+.mono,.money{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* Header */
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px;padding-block:22px 14px;border-bottom:1px solid var(--line)}
+.brand{display:flex;flex-direction:column;gap:2px}
+.brand h1{font-size:1.9rem;font-weight:700;letter-spacing:-.01em}
+.brand h1 span{color:var(--accent)}
+.brand .emp{color:var(--ink2);font-size:.92rem}
+.save-mode{display:inline-flex;align-items:center;gap:6px;font-size:.78rem;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em}
+.save-mode i{width:7px;height:7px;border-radius:50%;background:var(--ink3)}
+.save-mode.cloud i{background:var(--ok)}
+.save-mode.local i{background:var(--warn)}
+.summary{display:flex;flex-wrap:wrap;gap:6px 20px;font-size:.9rem;color:var(--ink2)}
+.summary b{color:var(--ink);font-family:var(--f-mono);font-weight:500}
+.summary .late b{color:var(--bad)}
+
+nav.tabs{display:flex;gap:2px;overflow-x:auto;padding-block:10px 0;margin-bottom:22px;border-bottom:1px solid var(--line);scrollbar-width:none}
+nav.tabs button{background:none;border:0;border-bottom:3px solid transparent;padding:8px 14px 10px;font-family:var(--f-display);font-size:1.02rem;font-weight:600;color:var(--ink2);cursor:pointer;white-space:nowrap}
+nav.tabs button:hover{color:var(--ink)}
+nav.tabs button[aria-current="page"]{color:var(--ink);border-bottom-color:var(--accent)}
+
+/* Generic */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px}
+.panel-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:12px}
+.panel-h .sum{font-family:var(--f-mono);color:var(--ink2);font-size:.95rem}
+.hint{font-size:.86rem;color:var(--ink3);margin-top:10px;max-width:70ch}
+.hint a,.lnk{color:var(--accent);background:none;border:0;padding:0;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:.82rem;color:var(--ink2);font-weight:500}
+label.f.span2{grid-column:1/-1}
+input[type=text],input[type=number],input[type=date],input[type=email],select,textarea{background:var(--surface2);border:1px solid var(--line);border-radius:6px;padding:8px 10px;width:100%;min-width:0;font-size:.95rem;color:var(--ink)}
+input[type=number]{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px var(--accent-soft)}
+textarea{resize:vertical;min-height:62px}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+.check{display:flex;gap:9px;align-items:flex-start;font-size:.9rem;color:var(--ink);cursor:pointer}
+.check input{margin-top:3px;accent-color:var(--accent);width:16px;height:16px}
+.check small{display:block;color:var(--ink3);font-size:.8rem}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:7px;padding:8px 14px;font-weight:600;font-size:.9rem;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--ink3)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn.ghost{border-color:transparent;background:none;color:var(--ink2)}
+.btn.ghost:hover{color:var(--ink);background:var(--surface2)}
+.btn.danger{color:var(--bad)}
+.btn.danger.armed{background:var(--bad);color:#fff;border-color:var(--bad)}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.btn.sm{padding:5px 10px;font-size:.82rem}
+.x{background:none;border:0;color:var(--ink3);cursor:pointer;font-size:1.15rem;line-height:1;padding:4px 6px;border-radius:5px}
+.x:hover{color:var(--bad);background:var(--bad-soft)}
+.row-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.page-h{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+.page-h .acts{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-block;padding:2px 9px;border-radius:99px;font-size:.76rem;font-weight:600;letter-spacing:.02em;white-space:nowrap;background:var(--surface2);color:var(--ink2);border:1px solid var(--line)}
+.chip.ok{background:var(--ok-soft);color:var(--ok);border-color:transparent}
+.chip.warn{background:var(--warn-soft);color:var(--warn);border-color:transparent}
+.chip.bad{background:var(--bad-soft);color:var(--bad);border-color:transparent}
+.chip.acc{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+.chip.ex{background:transparent;border-style:dashed;color:var(--ink3)}
+.filters{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.filters button{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:4px 12px;font-size:.85rem;cursor:pointer;color:var(--ink2)}
+.filters button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{border-collapse:collapse;width:100%}
+th{font-size:.74rem;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3);font-weight:600;text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:6px 8px;border-bottom:1px solid var(--line2);vertical-align:middle}
+.r{text-align:right}
+table.list tbody tr{cursor:pointer}
+table.list tbody tr:hover td{background:var(--surface2)}
+table.list td{padding:10px 8px}
+table.list .muted{color:var(--ink3);font-size:.85rem}
+table.grid-in td{padding:4px 4px}
+table.grid-in input{padding:6px 8px}
+table.grid-in .w-num{width:88px}
+table.grid-in .w-unit{width:80px}
+table.grid-in .w-desc{min-width:220px}
+table.grid-in td.subt{font-family:var(--f-mono);text-align:right;white-space:nowrap;color:var(--ink2);min-width:92px}
+.empty{padding:34px 16px;text-align:center;color:var(--ink3);border:1px dashed var(--line);border-radius:10px}
+.empty p{max-width:52ch;margin:0 auto 12px}
+
+/* Calculator */
+.calc{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:20px;align-items:start}
+.calc-in{display:flex;flex-direction:column;gap:16px}
+.calc-out{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);overflow:hidden}
+.calc-out .head{padding:14px 18px 0;display:flex;justify-content:space-between;align-items:baseline}
+.calc-out .head span{font-size:.74rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3)}
+.verdict{margin:12px 18px 4px;padding:10px 12px;border-radius:8px;display:flex;flex-direction:column;gap:2px;font-size:.88rem}
+.verdict strong{font-family:var(--f-display);font-size:1.08rem;font-weight:700}
+.v-ok{background:var(--ok-soft);color:var(--ok)}
+.v-warn{background:var(--warn-soft);color:var(--warn)}
+.v-bad{background:var(--bad-soft);color:var(--bad)}
+.v-none{background:var(--surface2);color:var(--ink2)}
+.verdict span{color:var(--ink)}
+dl.ledger{margin:8px 0 0;padding:0 18px}
+dl.ledger div{display:flex;justify-content:space-between;gap:10px;padding:5px 0;font-size:.9rem}
+dl.ledger dt{color:var(--ink2)}
+dl.ledger dt small{color:var(--ink3);margin-left:6px;font-size:.78rem}
+dl.ledger dd{margin:0;font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+dl.ledger .sub{border-top:1px solid var(--line);font-weight:600}
+dl.ledger .sub dt{color:var(--ink)}
+dl.ledger .gain dd{color:var(--ok)}
+dl.ledger .loss dd{color:var(--bad)}
+dl.ledger .big{border-top:2px solid var(--ink);margin-top:4px;padding-top:8px}
+dl.ledger .big dt{color:var(--ink);font-weight:600}
+dl.ledger .big dd{font-weight:600}
+dl.ledger .total{background:var(--accent);color:var(--accent-ink);margin:6px -18px 0;padding:10px 18px}
+dl.ledger .total dt{color:var(--accent-ink);font-family:var(--f-display);font-weight:700;font-size:1.05rem}
+dl.ledger .total dd{font-size:1.15rem;font-weight:600}
+dl.ledger .net{font-size:.85rem}
+.bar-box{padding:14px 18px 4px}
+.bar-label{font-size:.74rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);margin-bottom:6px}
+.bar{position:relative;display:flex;height:16px;border-radius:4px;overflow:visible;background:var(--surface2)}
+.bar i{display:block;height:100%}
+.bar i:first-child{border-radius:4px 0 0 4px}
+.bar i:last-child{border-radius:0 4px 4px 0}
+.bar .pmark{position:absolute;top:-5px;bottom:-5px;width:2px;background:var(--bad)}
+.bar .pmark::after{content:"precio";position:absolute;top:-16px;left:50%;transform:translateX(-50%);font-size:.68rem;color:var(--bad);font-weight:600}
+.legend{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px;font-size:.76rem;color:var(--ink2)}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend span::before{content:"";width:9px;height:9px;border-radius:2px;background:var(--c)}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin-top:12px}
+.kpis div{background:var(--surface);padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.kpis small{font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3);line-height:1.25}
+.kpis b{font-family:var(--f-mono);font-weight:500;font-size:1rem}
+.out-acts{display:flex;flex-direction:column;gap:8px;padding:14px 18px 18px}
+.out-acts .pair{display:flex;gap:8px}
+.out-acts .pair .btn{flex:1}
+
+/* Quote editor */
+.editor{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:20px;align-items:start}
+.editor-main{display:flex;flex-direction:column;gap:16px}
+.editor-side{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);display:flex;flex-direction:column;gap:12px}
+.side-card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px}
+.side-card h3{margin-bottom:8px}
+.totline{display:flex;justify-content:space-between;padding:4px 0;font-size:.92rem}
+.totline b{font-family:var(--f-mono);font-weight:500}
+.totline.grand{border-top:2px solid var(--ink);margin-top:4px;padding-top:8px;font-weight:600}
+.totline.grand b{font-weight:600;font-size:1.1rem}
+.side-acts{display:flex;flex-direction:column;gap:8px}
+.back{margin-bottom:10px}
+.dirty{font-size:.8rem;color:var(--warn)}
+.saved{font-size:.8rem;color:var(--ink3)}
+
+/* Paper sheet */
+.sheet-h{margin:28px 0 10px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.sheet-h small{color:var(--ink3)}
+.sheet-wrap{overflow-x:auto}
+.sheet{background:var(--paper);color:var(--paper-ink);width:100%;max-width:816px;min-width:600px;margin:0 auto;padding:44px 48px;border-radius:4px;box-shadow:var(--shadow);font-size:12.5px;line-height:1.45;font-family:var(--f-body)}
+.sheet .s-top{display:flex;justify-content:space-between;gap:24px}
+.sheet .s-emp b{display:block;font-family:var(--f-display);font-size:19px;font-weight:700}
+.sheet .s-emp p{color:#5c6862}
+.sheet .s-doc{width:210px;flex:none}
+.sheet .s-doc .tag{background:var(--paper-accent);color:#fff;text-align:center;font-family:var(--f-display);font-weight:700;letter-spacing:.12em;padding:5px}
+.sheet .s-doc div.kv{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--paper-line)}
+.sheet .s-doc div.kv span{color:#5c6862}
+.sheet hr{border:0;border-top:1.5px solid var(--paper-accent);margin:18px 0 14px}
+.sheet .lbl{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--paper-accent);font-weight:700}
+.sheet .s-cli{display:grid;grid-template-columns:1fr 1fr;gap:4px 24px;margin:4px 0 16px}
+.sheet .s-cli b{font-size:14px}
+.sheet .s-title{font-family:var(--f-display);font-size:16px;font-weight:600;margin:4px 0 10px}
+.sheet table th{background:var(--paper-accent);color:#fff;font-size:10.5px;padding:6px 8px;border:0}
+.sheet table td{border-bottom:1px solid var(--paper-line);padding:6px 8px;color:var(--paper-ink)}
+.sheet table tbody tr:nth-child(even) td{background:var(--paper-soft)}
+.sheet .num{font-family:var(--f-mono);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.sheet .s-tot{margin:10px 0 0 auto;width:270px}
+.sheet .s-tot div{display:flex;justify-content:space-between;padding:4px 8px}
+.sheet .s-tot .g{background:var(--paper-accent);color:#fff;font-weight:700}
+.sheet .s-words{margin-top:10px;font-size:11.5px}
+.sheet .s-cond{margin-top:18px;display:grid;grid-template-columns:140px 1fr;gap:4px 12px}
+.sheet .s-cond span{color:#5c6862}
+.sheet .s-sign{margin-top:44px;width:230px;border-top:1px solid var(--paper-ink);padding-top:6px}
+.sheet .s-sign span{display:block;color:#5c6862}
+
+/* Invoices */
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.tile small{display:block;font-size:.74rem;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3)}
+.tile b{display:block;font-family:var(--f-mono);font-weight:500;font-size:1.35rem;margin-top:4px}
+.tile span{font-size:.82rem;color:var(--ink2)}
+.tile.late b{color:var(--bad)}
+.tile.good b{color:var(--ok)}
+.note{font-size:.84rem;color:var(--ink3);margin-top:14px;max-width:80ch}
+.overlay{position:fixed;inset:0;background:rgba(10,14,12,.45);display:flex;align-items:flex-start;justify-content:center;padding:calc(env(safe-area-inset-top,0px) + 24px) 16px calc(env(safe-area-inset-bottom,0px) + 24px);overflow-y:auto;z-index:20}
+.modal{background:var(--surface);border-radius:12px;width:100%;max-width:640px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.modal h2{margin-bottom:14px}
+.modal .calc-line{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:14px;padding:10px 12px;background:var(--surface2);border-radius:8px;font-size:.9rem}
+.modal .calc-line b{font-family:var(--f-mono);font-weight:500}
+.modal .m-acts{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;margin-top:18px}
+.modal .m-acts div{display:flex;gap:8px}
+
+/* Learn */
+.learn{display:grid;grid-template-columns:220px minmax(0,1fr);gap:28px;align-items:start}
+.learn nav{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);display:flex;flex-direction:column;gap:2px;font-size:.9rem}
+.learn nav a{color:var(--ink2);text-decoration:none;padding:5px 10px;border-left:2px solid var(--line)}
+.learn nav a:hover{color:var(--ink);border-left-color:var(--accent)}
+.lesson{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:22px 24px;margin-bottom:16px;max-width:760px}
+.lesson .k{font-family:var(--f-mono);font-size:.78rem;color:var(--accent);letter-spacing:.04em}
+.lesson h2{margin:4px 0 10px}
+.lesson p,.lesson li{max-width:68ch;color:var(--ink)}
+.lesson p+p{margin-top:10px}
+.lesson ul{margin:10px 0 0;padding-left:20px}
+.lesson li+li{margin-top:4px}
+.example{margin-top:14px;background:var(--surface2);border-radius:8px;padding:12px 14px;font-size:.92rem}
+.example .mono{font-size:.88rem}
+.mini{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:14px}
+.mini-out{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.mini-out div{border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.mini-out small{display:block;font-size:.74rem;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3)}
+.mini-out b{font-family:var(--f-mono);font-weight:500;font-size:1.15rem}
+.mini-out span{display:block;font-size:.84rem;color:var(--ink2)}
+.mini-out .good{border-color:var(--ok)}
+
+/* Company */
+.company{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
+.company .panel h2{margin-bottom:12px}
+.hour-res{margin-top:14px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;background:var(--accent-soft);border-radius:8px;padding:12px 14px}
+.hour-res b{font-family:var(--f-mono);font-size:1.3rem;font-weight:600;color:var(--accent)}
+.hour-res small{display:block;color:var(--ink2);font-size:.8rem}
+.stick-save{position:sticky;bottom:0;margin-top:16px;padding:12px 0 calc(env(safe-area-inset-bottom,0px) + 12px);background:linear-gradient(transparent,var(--bg) 30%);display:flex;gap:10px;align-items:center;justify-content:flex-end}
+
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 22px);transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:.9rem;z-index:40;box-shadow:var(--shadow);max-width:calc(100% - 32px)}
+.banner{background:var(--warn-soft);color:var(--warn);border-radius:8px;padding:10px 14px;font-size:.88rem;margin-bottom:16px}
+
+@media (max-width:1000px){
+  .calc,.editor{grid-template-columns:1fr}
+  .calc-out,.editor-side{position:static}
+  .tiles{grid-template-columns:repeat(2,1fr)}
+  .learn{grid-template-columns:1fr}
+  .learn nav{position:static;flex-direction:row;flex-wrap:wrap}
+  .learn nav a{border-left:0;border-bottom:2px solid var(--line)}
+  .company{grid-template-columns:1fr}
+}
+@media (max-width:560px){
+  .wrap{padding-inline:16px}
+  .brand h1{font-size:1.6rem}
+  .panel{padding:14px}
+  .lesson{padding:18px}
+  .sheet{padding:28px 26px}
+  .kpis{grid-template-columns:1fr 1fr 1fr}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+<style>[hidden]{display:none!important}img{max-width:100%}</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1>Cotiza <span>y</span> Cobra</h1>
+      <div class="emp" id="emp-name"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+      <div class="summary" id="summary"></div>
+      <div class="save-mode" id="save-mode"><i></i><span>Conectando…</span></div>
+    </div>
+  </header>
+  <nav class="tabs" id="tabs" aria-label="Secciones"></nav>
+  <div id="banner"></div>
+  <main id="view"></main>
+</div>
+<div id="modal-root"></div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function(){
+"use strict";
+const IVA = 0.13;
+const TABS = [
+  ["calc","Calculadora de costos"],["cot","Cotizaciones"],["fac","Facturas"],["aprende","Aprende a cotizar"],["empresa","Mi empresa"]
+];
+const DEF_EMP = {
+  nombre:"Mi Empresa de Servicios Técnicos", giro:"Mantenimiento industrial y servicios electromecánicos",
+  nit:"", nrc:"", direccion:"", telefono:"", correo:"", responsable:"", cargo:"",
+  salario:750, prestaciones:35, horasMes:160, costoHora:6.33,
+  indirectos:15, imprevistos:5, margen:30, margenMin:15, validez:15, plazoCredito:30,
+  pago:"50 % de anticipo y 50 % contra entrega del trabajo",
+  garantia:"90 días en mano de obra; repuestos según garantía del fabricante"
+};
+
+/* ---------- utils ---------- */
+const $ = (s, r=document) => r.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const num = v => { const n = parseFloat(String(v ?? "").replace(/,/g,"")); return isFinite(n) ? n : 0; };
+const r2 = n => Math.round((n + Number.EPSILON) * 100) / 100;
+const money = n => (n < 0 ? "-" : "") + "$" + Math.abs(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const pct = n => (isFinite(n) ? (n*100).toFixed(1) : "0.0") + " %";
+const fnum = n => Number(n).toLocaleString("en-US",{maximumFractionDigits:2});
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36));
+const hoy = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,10); };
+const addDays = (s, n) => { if(!s) return ""; const d = new Date(s + "T12:00:00"); d.setDate(d.getDate() + num(n)); return d.toISOString().slice(0,10); };
+const MESES = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+const MESES_L = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+const fFecha = s => { if(!s) return "—"; const [y,m,d] = s.split("-"); return `${+d} ${MESES[+m-1]} ${y}`; };
+const fFechaL = s => { if(!s) return ""; const [y,m,d] = s.split("-"); return `${+d} de ${MESES_L[+m-1]} de ${y}`; };
+const clone = o => JSON.parse(JSON.stringify(o));
+let toastT;
+function toast(msg){ const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(()=>t.hidden = true, 3200); }
+const lsGet = k => { try { return JSON.parse(localStorage.getItem(k)); } catch(e){ return null; } };
+const lsSet = (k,v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} };
+
+/* ---------- number to words (es) ---------- */
+const U = ["","uno","dos","tres","cuatro","cinco","seis","siete","ocho","nueve"];
+const TEENS = ["diez","once","doce","trece","catorce","quince","dieciséis","diecisiete","dieciocho","diecinueve"];
+const VEINT = ["veinte","veintiuno","veintidós","veintitrés","veinticuatro","veinticinco","veintiséis","veintisiete","veintiocho","veintinueve"];
+const DEC = ["","","","treinta","cuarenta","cincuenta","sesenta","setenta","ochenta","noventa"];
+const CEN = ["","ciento","doscientos","trescientos","cuatrocientos","quinientos","seiscientos","setecientos","ochocientos","novecientos"];
+function d99(n){ if(n<10) return U[n]; if(n<20) return TEENS[n-10]; if(n<30) return VEINT[n-20]; return DEC[Math.floor(n/10)] + (n%10 ? " y " + U[n%10] : ""); }
+function d999(n){ if(n===100) return "cien"; const h = Math.floor(n/100), r = n%100; return (CEN[h] + (r ? " " + d99(r) : "")).trim(); }
+function apoc(s){ return s.replace(/veintiuno$/,"veintiún").replace(/uno$/,"un"); }
+function enLetras(n){
+  if(n===0) return "cero";
+  const m = Math.floor(n/1e6), k = Math.floor((n%1e6)/1000), r = n%1000; let s = "";
+  if(m) s += (m===1 ? "un millón" : apoc(d999(m)) + " millones") + " ";
+  if(k) s += (k===1 ? "mil" : apoc(d999(k)) + " mil") + " ";
+  if(r) s += d999(r);
+  return s.trim();
+}
+function montoLetras(v){ const e = Math.floor(r2(v)); const c = Math.round((r2(v) - e) * 100); return `${enLetras(e).toUpperCase()} ${String(c).padStart(2,"0")}/100 DÓLARES DE LOS ESTADOS UNIDOS DE AMÉRICA`; }
+
+/* ---------- state ---------- */
+const S = {
+  tab: "calc", empresa: clone(DEF_EMP), empDraft: null, empDirty: false,
+  cotizaciones: [], facturas: [], calc: null,
+  edit: null, editDirty: false, cotFilter: "todas", facFilter: "todas",
+  inv: null, mode: "connecting"
+};
+let DB = null;
+
+function ejemploCalc(E){
+  const t = num(E.costoHora) || 6.33;
+  return {
+    titulo:"Mantenimiento preventivo de compresor de tornillo 50 HP", cliente:"",
+    mo:[
+      {rol:"Técnico electromecánico", personas:2, horas:6, tarifa:t},
+      {rol:"Ayudante de mantenimiento", personas:1, horas:6, tarifa:r2(t*0.68)}
+    ],
+    mat:[
+      {desc:"Filtro de aire para compresor", cant:1, unidad:"u", costo:48, merma:0},
+      {desc:"Aceite sintético para compresor", cant:5, unidad:"gal", costo:32, merma:5},
+      {desc:"Filtro separador aire-aceite", cant:1, unidad:"u", costo:95, merma:0},
+      {desc:"Consumibles (limpiador, wipe, cinta)", cant:1, unidad:"lote", costo:12, merma:0}
+    ],
+    otros:[
+      {desc:"Traslado ida y vuelta (60 km)", cant:60, unidad:"km", costo:0.35},
+      {desc:"Alimentación del equipo", cant:3, unidad:"persona", costo:6},
+      {desc:"Uso de cámara termográfica", cant:1, unidad:"servicio", costo:15}
+    ],
+    indirectos:num(E.indirectos), imprevistos:num(E.imprevistos), margen:num(E.margen),
+    precioManual:"", retencion:false, detalle:true
+  };
+}
+function calcVacio(E){
+  return { titulo:"", cliente:"", mo:[{rol:"Técnico", personas:1, horas:0, tarifa:num(E.costoHora)}], mat:[{desc:"", cant:1, unidad:"u", costo:0, merma:0}], otros:[{desc:"Traslado", cant:0, unidad:"km", costo:0.35}],
+    indirectos:num(E.indirectos), imprevistos:num(E.imprevistos), margen:num(E.margen), precioManual:"", retencion:false, detalle:true };
+}
+
+/* ---------- calculations ---------- */
+function calcular(c){
+  const E = S.empresa;
+  const mo = c.mo.reduce((s,r)=>s + num(r.personas)*num(r.horas)*num(r.tarifa), 0);
+  const hh = c.mo.reduce((s,r)=>s + num(r.personas)*num(r.horas), 0);
+  const mat = c.mat.reduce((s,r)=>s + num(r.cant)*num(r.costo)*(1 + num(r.merma)/100), 0);
+  const otros = c.otros.reduce((s,r)=>s + num(r.cant)*num(r.costo), 0);
+  const directo = mo + mat + otros;
+  const ind = directo * num(c.indirectos)/100, imp = directo * num(c.imprevistos)/100;
+  const costo = directo + ind + imp;
+  const m = Math.min(Math.max(num(c.margen),0), 90)/100;
+  const sugerido = r2(costo/(1-m));
+  const manual = String(c.precioManual ?? "").trim() !== "" ? r2(num(c.precioManual)) : null;
+  const precio = manual != null ? manual : sugerido;
+  const util = precio - costo, margen = precio > 0 ? util/precio : 0, markup = costo > 0 ? util/costo : 0;
+  const iva = r2(precio*IVA), total = r2(precio + iva), ret = c.retencion ? r2(precio*0.01) : 0;
+  const minM = num(E.margenMin)/100, precioMin = r2(costo/(1-Math.min(minM,.9)));
+  return {mo, hh, mat, otros, directo, ind, imp, costo, sugerido, manual, precio, util, margen, markup, iva, total, ret, recibe:r2(total-ret), precioMin, minM};
+}
+function veredicto(R){
+  if(R.directo <= 0) return {cls:"v-none", t:"Agrega tus costos", d:"Llena mano de obra, materiales y otros costos para ver el precio."};
+  if(R.precio < R.directo) return {cls:"v-bad", t:"Pierdes dinero", d:`El precio no cubre ni los costos directos. Te faltan ${money(R.directo-R.precio)} solo para pagar materiales y personal.`};
+  if(R.precio < R.costo) return {cls:"v-bad", t:"Pierdes dinero", d:`Cubres los costos directos, pero no los indirectos ni los imprevistos. Lo mínimo para no perder es ${money(R.costo)}.`};
+  if(R.margen < R.minM) return {cls:"v-warn", t:"Margen bajo", d:`Ganas ${pct(R.margen)} y tu mínimo es ${pct(R.minM)}. Para llegar al mínimo cobra ${money(R.precioMin)} sin IVA.`};
+  return {cls:"v-ok", t:"Precio sano", d:`Ganas ${money(R.util)} limpios sobre todos los costos (margen de ${pct(R.margen)}).`};
+}
+function totalesQ(q){
+  const sub = r2((q.lineas||[]).reduce((s,l)=>s + num(l.cant)*num(l.pu), 0));
+  const iva = r2(sub*IVA), total = r2(sub + iva), ret = q.retencion ? r2(sub*0.01) : 0;
+  return {sub, iva, total, ret, liquido:r2(total-ret)};
+}
+function estadoQ(q){
+  if(q.estado === "enviada" && q.fecha && addDays(q.fecha, q.validez) < hoy()) return "vencida";
+  return q.estado || "borrador";
+}
+const Q_CHIP = {borrador:["Borrador",""], enviada:["Enviada","acc"], aceptada:["Aceptada","ok"], rechazada:["Rechazada","bad"], vencida:["Vencida","warn"]};
+function totalesF(f){
+  const sub = r2(num(f.subtotal)), iva = r2(sub*IVA), total = r2(sub+iva), ret = f.retencion ? r2(sub*0.01) : 0;
+  return {sub, iva, total, ret, cobrar:r2(total-ret)};
+}
+function estadoF(f){
+  if(f.estado === "pendiente" && f.vence && f.vence < hoy()) return "vencida";
+  return f.estado || "pendiente";
+}
+const F_CHIP = {pendiente:["Por cobrar","acc"], vencida:["Vencida","bad"], pagada:["Pagada","ok"], anulada:["Anulada",""]};
+function siguienteNumero(){
+  const y = new Date().getFullYear(), pre = `COT-${y}-`;
+  const max = S.cotizaciones.reduce((m,q)=> (q.numero||"").startsWith(pre) ? Math.max(m, parseInt(q.numero.slice(pre.length),10)||0) : m, 0);
+  return pre + String(max+1).padStart(3,"0");
+}
+
+/* ---------- storage ---------- */
+const LS_KEY = "cotiza-y-cobra-datos";
+let STORE_OK = true;
+function storageDisponible(){
+  try { const k = "__cyc_test__"; localStorage.setItem(k, "1"); localStorage.removeItem(k); return true; } catch(e){ return false; }
+}
+function persist(){
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify({version:1, guardado:new Date().toISOString(), empresa:S.empresa, cotizaciones:S.cotizaciones, facturas:S.facturas}));
+    return true;
+  } catch(e){
+    toast("No se pudo guardar en este navegador. Exporta un respaldo para no perder tus datos.");
+    return false;
+  }
+}
+async function guardar(col, id, data){
+  const body = clone(data); body.id = id;
+  const arr = S[col]; const i = arr.findIndex(x=>x.id===id);
+  if(i>=0) arr[i] = body; else arr.push(body);
+  const ok = persist(); refresh(); return ok;
+}
+async function borrar(col, id){
+  S[col] = S[col].filter(x=>x.id!==id); persist(); refresh();
+}
+async function guardarEmpresa(data){
+  S.empresa = {...DEF_EMP, ...clone(data)};
+  const ok = persist(); refresh(true); return ok;
+}
+function ejemplosIniciales(){
+  const y = new Date().getFullYear(), d = n => addDays(hoy(), n);
+  const cot = {
+    id:"ejemplo-cot-001", ejemplo:true, numero:`COT-${y}-001`, fecha:d(-2), validez:15, estado:"enviada",
+    cliente:{nombre:"Plásticos del Pacífico, S.A. de C.V.", contacto:"Ing. Marta Rivas", correo:"", telefono:"", direccion:"Km 12 carretera al Puerto de La Libertad", nrc:"123456-7"},
+    titulo:"Mantenimiento preventivo de compresor de tornillo 50 HP",
+    lineas:[
+      {desc:"Mano de obra: Técnico electromecánico (2 personas)", cant:12, unidad:"h", pu:10.85},
+      {desc:"Mano de obra: Ayudante de mantenimiento", cant:6, unidad:"h", pu:7.37},
+      {desc:"Filtro de aire para compresor", cant:1, unidad:"u", pu:82.30},
+      {desc:"Aceite sintético para compresor", cant:5, unidad:"gal", pu:57.60},
+      {desc:"Filtro separador aire-aceite", cant:1, unidad:"u", pu:162.86},
+      {desc:"Consumibles (limpiador, wipe, cinta)", cant:1, unidad:"lote", pu:20.57},
+      {desc:"Traslado ida y vuelta (60 km)", cant:60, unidad:"km", pu:0.60},
+      {desc:"Alimentación del equipo", cant:3, unidad:"persona", pu:10.29},
+      {desc:"Uso de cámara termográfica", cant:1, unidad:"servicio", pu:25.71}
+    ],
+    pago:DEF_EMP.pago, plazo:"1 día hábil, en paro programado", garantia:DEF_EMP.garantia,
+    notas:"Incluye inspección termográfica del tablero y reporte con fotografías. No incluye reparaciones adicionales que se detecten durante el servicio.",
+    costoInterno:574.51, retencion:false, creada:new Date().toISOString()
+  };
+  const fac = [
+    {id:"ejemplo-fac-1", ejemplo:true, tipo:"CCF", numero:"DTE-03-M001P001-000000000000015", fecha:d(-60), cliente:"Industrias Metálicas del Sur", nrc:"234567-1", concepto:"Reparación de tablero de control de prensa", subtotal:1250, retencion:true, plazo:30, vence:d(-30), estado:"pendiente", fechaPago:"", cotizacion:""},
+    {id:"ejemplo-fac-2", ejemplo:true, tipo:"CCF", numero:"DTE-03-M001P001-000000000000018", fecha:d(-10), cliente:"Alimentos La Cosecha", nrc:"345678-2", concepto:"Mantenimiento preventivo de cuarto frío", subtotal:680, retencion:false, plazo:30, vence:d(20), estado:"pendiente", fechaPago:"", cotizacion:""},
+    {id:"ejemplo-fac-3", ejemplo:true, tipo:"FCF", numero:"DTE-01-M001P001-000000000000042", fecha:d(-15), cliente:"Hotel Brisas de Metalío", nrc:"", concepto:"Instalación de bomba sumergible", subtotal:420, retencion:false, plazo:15, vence:d(0), estado:"pagada", fechaPago:d(-5), cotizacion:""}
+  ];
+  return {cot:[cot], fac};
+}
+async function init(){
+  STORE_OK = storageDisponible();
+  const saved = lsGet(LS_KEY);
+  if(saved && typeof saved === "object"){
+    S.empresa = {...DEF_EMP, ...(saved.empresa||{})};
+    S.cotizaciones = Array.isArray(saved.cotizaciones) ? saved.cotizaciones : [];
+    S.facturas = Array.isArray(saved.facturas) ? saved.facturas : [];
+  } else {
+    const ex = ejemplosIniciales();
+    S.cotizaciones = ex.cot; S.facturas = ex.fac;
+    if(STORE_OK) persist();
+  }
+  S.calc = lsGet("cyc-calc") || ejemploCalc(S.empresa);
+  const h = (location.hash||"").replace("#","");
+  if(TABS.some(t=>t[0]===h)) S.tab = h;
+  setMode(STORE_OK ? "ok" : "nostore");
+  renderTabs(); renderAll();
+}
+function setMode(m){
+  S.mode = m; const el = $("#save-mode");
+  el.className = "save-mode " + (m === "ok" ? "cloud" : "local");
+  el.querySelector("span").textContent = m === "ok" ? "Guardado en este navegador" : "Sin guardado";
+  $("#banner").innerHTML = m === "ok" ? "" : `<div class="banner">Este navegador no permite guardar datos (por ejemplo, en una ventana privada). Lo que registres se perderá al cerrar. Usa "Exportar respaldo" en Mi empresa antes de salir.</div>`;
+}
+
+/* ---------- respaldo (exportar / importar) ---------- */
+function descargarBlob(blob, name){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+}
+function exportarRespaldo(){
+  const data = {app:"Cotiza y Cobra", version:1, exportado:new Date().toISOString(), empresa:S.empresa, cotizaciones:S.cotizaciones, facturas:S.facturas};
+  descargarBlob(new Blob([JSON.stringify(data, null, 2)], {type:"application/json"}), `respaldo-cotiza-y-cobra-${hoy()}.json`);
+  toast("Respaldo descargado. Guárdalo en un lugar seguro.");
+}
+function importarRespaldo(file){
+  const r = new FileReader();
+  r.onload = () => {
+    let d;
+    try { d = JSON.parse(r.result); } catch(e){ toast("El archivo no es un respaldo válido de Cotiza y Cobra."); return; }
+    if(!d || typeof d !== "object" || !Array.isArray(d.cotizaciones) || !Array.isArray(d.facturas)){ toast("El archivo no es un respaldo válido de Cotiza y Cobra."); return; }
+    S.empresa = {...DEF_EMP, ...(d.empresa||{})};
+    S.cotizaciones = d.cotizaciones; S.facturas = d.facturas;
+    S.empDraft = null; S.empDirty = false; S.edit = null; S.inv = null;
+    persist(); renderAll();
+    toast(`Respaldo importado: ${d.cotizaciones.length} cotizaciones y ${d.facturas.length} facturas.`);
+  };
+  r.onerror = () => toast("No se pudo leer el archivo. Inténtalo de nuevo.");
+  r.readAsText(file);
+}
+function refresh(empChanged){
+  renderHeader();
+  if(S.tab === "cot" && !S.edit) renderView();
+  else if(S.tab === "fac" && !S.inv) renderView();
+  else if(S.tab === "empresa" && !S.empDirty && empChanged){ S.empDraft = null; renderView(); }
+  else if(S.tab === "calc" && empChanged) renderCalcOut();
+}
+
+/* ---------- header / tabs ---------- */
+function renderTabs(){
+  $("#tabs").innerHTML = TABS.map(([k,l])=>`<button data-act="tab" data-tab="${k}" ${S.tab===k?'aria-current="page"':""}>${l}</button>`).join("");
+}
+function renderHeader(){
+  $("#emp-name").textContent = S.empresa.nombre || "";
+  const pend = S.facturas.filter(f=>["pendiente","vencida"].includes(estadoF(f)));
+  const late = pend.filter(f=>estadoF(f)==="vencida");
+  const porCobrar = pend.reduce((s,f)=>s+totalesF(f).cobrar,0), vencido = late.reduce((s,f)=>s+totalesF(f).cobrar,0);
+  const abiertas = S.cotizaciones.filter(q=>["borrador","enviada"].includes(estadoQ(q)));
+  $("#summary").innerHTML = `<span>Por cobrar <b>${money(porCobrar)}</b></span>` +
+    (late.length ? `<span class="late">Vencido <b>${money(vencido)}</b></span>` : "") +
+    `<span>Cotizaciones abiertas <b>${abiertas.length}</b></span>`;
+}
+function renderAll(){ renderHeader(); renderView(); }
+function renderView(){
+  const v = $("#view");
+  if(S.tab === "calc") v.innerHTML = viewCalc();
+  else if(S.tab === "cot") v.innerHTML = S.edit ? viewEditor() : viewCotizaciones();
+  else if(S.tab === "fac") v.innerHTML = viewFacturas();
+  else if(S.tab === "aprende") { v.innerHTML = viewAprende(); miniCalc(); }
+  else if(S.tab === "empresa") v.innerHTML = viewEmpresa();
+  if(S.tab === "calc") renderCalcOut();
+  if(S.tab === "cot" && S.edit) updateEditor();
+  renderModal();
+}
+
+/* ---------- calculator view ---------- */
+function rowMO(r,i){
+  return `<tr>
+    <td><input type="text" id="mo-${i}-rol" class="w-desc" data-calc="mo:${i}:rol" value="${esc(r.rol)}" placeholder="Puesto" aria-label="Puesto"></td>
+    <td><input type="number" id="mo-${i}-personas" class="w-num" data-calc="mo:${i}:personas" value="${esc(r.personas)}" min="0" step="1" aria-label="Personas"></td>
+    <td><input type="number" id="mo-${i}-horas" class="w-num" data-calc="mo:${i}:horas" value="${esc(r.horas)}" min="0" step="0.5" aria-label="Horas por persona"></td>
+    <td><input type="number" id="mo-${i}-tarifa" class="w-num" data-calc="mo:${i}:tarifa" value="${esc(r.tarifa)}" min="0" step="0.01" aria-label="Costo por hora"></td>
+    <td class="subt" id="sub-mo-${i}"></td>
+    <td><button class="x" data-act="del-row" data-sec="mo" data-i="${i}" aria-label="Quitar fila">×</button></td></tr>`;
+}
+function rowMat(r,i){
+  return `<tr>
+    <td><input type="text" id="mat-${i}-desc" class="w-desc" data-calc="mat:${i}:desc" value="${esc(r.desc)}" placeholder="Material o repuesto" aria-label="Descripción"></td>
+    <td><input type="number" id="mat-${i}-cant" class="w-num" data-calc="mat:${i}:cant" value="${esc(r.cant)}" min="0" step="any" aria-label="Cantidad"></td>
+    <td><input type="text" id="mat-${i}-unidad" class="w-unit" data-calc="mat:${i}:unidad" value="${esc(r.unidad)}" aria-label="Unidad"></td>
+    <td><input type="number" id="mat-${i}-costo" class="w-num" data-calc="mat:${i}:costo" value="${esc(r.costo)}" min="0" step="0.01" aria-label="Costo unitario"></td>
+    <td><input type="number" id="mat-${i}-merma" class="w-num" data-calc="mat:${i}:merma" value="${esc(r.merma)}" min="0" step="1" aria-label="Merma %"></td>
+    <td class="subt" id="sub-mat-${i}"></td>
+    <td><button class="x" data-act="del-row" data-sec="mat" data-i="${i}" aria-label="Quitar fila">×</button></td></tr>`;
+}
+function rowOtro(r,i){
+  return `<tr>
+    <td><input type="text" id="otros-${i}-desc" class="w-desc" data-calc="otros:${i}:desc" value="${esc(r.desc)}" placeholder="Transporte, viáticos, alquiler, subcontrato…" aria-label="Concepto"></td>
+    <td><input type="number" id="otros-${i}-cant" class="w-num" data-calc="otros:${i}:cant" value="${esc(r.cant)}" min="0" step="any" aria-label="Cantidad"></td>
+    <td><input type="text" id="otros-${i}-unidad" class="w-unit" data-calc="otros:${i}:unidad" value="${esc(r.unidad)}" aria-label="Unidad"></td>
+    <td><input type="number" id="otros-${i}-costo" class="w-num" data-calc="otros:${i}:costo" value="${esc(r.costo)}" min="0" step="0.01" aria-label="Costo unitario"></td>
+    <td class="subt" id="sub-otros-${i}"></td>
+    <td><button class="x" data-act="del-row" data-sec="otros" data-i="${i}" aria-label="Quitar fila">×</button></td></tr>`;
+}
+function viewCalc(){
+  const c = S.calc, E = S.empresa;
+  return `<div class="calc">
+  <div class="calc-in">
+    <section class="panel">
+      <div class="panel-h"><h2>Trabajo a cotizar</h2></div>
+      <div class="fields">
+        <label class="f span2">Descripción del trabajo<input type="text" id="c-titulo" data-calc="titulo" value="${esc(c.titulo)}" placeholder="Ej.: Instalación de banco de capacitores 150 kVAR"></label>
+        <label class="f span2">Cliente (opcional)<input type="text" id="c-cliente" data-calc="cliente" value="${esc(c.cliente)}" placeholder="Nombre de la empresa cliente"></label>
+      </div>
+    </section>
+    <section class="panel">
+      <div class="panel-h"><h2>Mano de obra</h2><span class="sum" id="sum-mo"></span></div>
+      <div class="tbl-wrap"><table class="grid-in"><thead><tr><th>Puesto</th><th>Personas</th><th>Horas c/u</th><th>Costo/hora</th><th class="r">Subtotal</th><th></th></tr></thead>
+      <tbody>${c.mo.map(rowMO).join("")}</tbody></table></div>
+      <div class="row-actions"><button class="btn sm" data-act="add-row" data-sec="mo">+ Agregar puesto</button><button class="btn sm ghost" data-act="tarifa-emp">Usar costo real de la hora (${money(num(E.costoHora))})</button></div>
+      <p class="hint">Incluye las horas de traslado, compra de repuestos y pruebas: también son horas pagadas. El costo por hora debe ser el <b>real</b> (salario más prestaciones), no solo el salario. Lo calculas en <button class="lnk" data-act="tab" data-tab="empresa">Mi empresa</button>.</p>
+    </section>
+    <section class="panel">
+      <div class="panel-h"><h2>Materiales y repuestos</h2><span class="sum" id="sum-mat"></span></div>
+      <div class="tbl-wrap"><table class="grid-in"><thead><tr><th>Descripción</th><th>Cant.</th><th>Unidad</th><th>Costo unit.</th><th>Merma %</th><th class="r">Subtotal</th><th></th></tr></thead>
+      <tbody>${c.mat.map(rowMat).join("")}</tbody></table></div>
+      <div class="row-actions"><button class="btn sm" data-act="add-row" data-sec="mat">+ Agregar material</button></div>
+      <p class="hint">Usa el precio de compra actual con IVA incluido si no recuperas ese IVA como crédito fiscal. La merma cubre lo que se desperdicia o sobra (cable, aceite, tubería).</p>
+    </section>
+    <section class="panel">
+      <div class="panel-h"><h2>Otros costos directos</h2><span class="sum" id="sum-otros"></span></div>
+      <div class="tbl-wrap"><table class="grid-in"><thead><tr><th>Concepto</th><th>Cant.</th><th>Unidad</th><th>Costo unit.</th><th class="r">Subtotal</th><th></th></tr></thead>
+      <tbody>${c.otros.map(rowOtro).join("")}</tbody></table></div>
+      <div class="row-actions"><button class="btn sm" data-act="add-row" data-sec="otros">+ Agregar costo</button></div>
+    </section>
+    <section class="panel">
+      <div class="panel-h"><h2>Estructura del precio</h2></div>
+      <div class="fields">
+        <label class="f">Gastos indirectos (%)<input type="number" id="c-ind" data-calc="indirectos" value="${esc(c.indirectos)}" min="0" step="1"></label>
+        <label class="f">Imprevistos (%)<input type="number" id="c-imp" data-calc="imprevistos" value="${esc(c.imprevistos)}" min="0" step="1"></label>
+        <label class="f">Margen de ganancia deseado (%)<input type="number" id="c-margen" data-calc="margen" value="${esc(c.margen)}" min="0" max="90" step="1"></label>
+        <label class="f">Precio que quieres cobrar, sin IVA (opcional)<input type="number" id="c-manual" data-calc="precioManual" value="${esc(c.precioManual)}" min="0" step="0.01" placeholder="Déjalo vacío para usar el sugerido"></label>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:14px">
+        <label class="check"><input type="checkbox" id="c-ret" data-calc="retencion" ${c.retencion?"checked":""}><span>El cliente es gran contribuyente<small>Te retiene el 1 % del precio sin IVA como anticipo de IVA.</small></span></label>
+        <label class="check"><input type="checkbox" id="c-det" data-calc="detalle" ${c.detalle?"checked":""}><span>Mostrar el detalle por partidas en la cotización<small>Si lo desmarcas, el cliente verá un solo precio global por el servicio.</small></span></label>
+      </div>
+      <p class="hint">Indirectos son los gastos del negocio que no son de este trabajo en particular: local, luz, teléfono, contador, vehículo, herramientas. Si no sabes tu porcentaje, revisa la lección en <button class="lnk" data-act="tab" data-tab="aprende">Aprende a cotizar</button>.</p>
+    </section>
+  </div>
+  <aside class="calc-out" id="calc-out" aria-live="polite"></aside>
+</div>`;
+}
+function renderCalcOut(){
+  const box = $("#calc-out"); if(!box) return;
+  const c = S.calc, R = calcular(c), V = veredicto(R);
+  c.mo.forEach((r,i)=>{ const e=$("#sub-mo-"+i); if(e) e.textContent = money(num(r.personas)*num(r.horas)*num(r.tarifa)); });
+  c.mat.forEach((r,i)=>{ const e=$("#sub-mat-"+i); if(e) e.textContent = money(num(r.cant)*num(r.costo)*(1+num(r.merma)/100)); });
+  c.otros.forEach((r,i)=>{ const e=$("#sub-otros-"+i); if(e) e.textContent = money(num(r.cant)*num(r.costo)); });
+  const sm = (id,v)=>{ const e=$(id); if(e) e.textContent = money(v); };
+  sm("#sum-mo",R.mo); sm("#sum-mat",R.mat); sm("#sum-otros",R.otros);
+  const den = Math.max(R.precio, R.costo) || 1;
+  const segs = [["Mano de obra",R.mo,"--seg-mo"],["Materiales",R.mat,"--seg-mat"],["Otros",R.otros,"--seg-otros"],["Indirectos",R.ind,"--seg-ind"],["Imprevistos",R.imp,"--seg-imp"]];
+  if(R.util > 0) segs.push(["Utilidad",R.util,"--seg-util"]);
+  const bar = segs.filter(s=>s[1]>0).map(s=>`<i style="width:${(s[1]/den*100).toFixed(2)}%;background:var(${s[2]})" title="${s[0]}: ${money(s[1])}"></i>`).join("")
+    + (R.precio < R.costo && R.directo>0 ? `<span class="pmark" style="left:${(R.precio/den*100).toFixed(2)}%"></span>` : "");
+  const pxh = R.hh > 0 ? money(R.precio/R.hh) : "—";
+  box.innerHTML = `
+    <div class="head"><h3>Hoja de costos</h3><span>${R.manual!=null?"Precio manual":"Precio sugerido"}</span></div>
+    <div class="verdict ${V.cls}"><strong>${V.t}</strong><span>${V.d}</span></div>
+    <dl class="ledger">
+      <div><dt>Mano de obra<small>${fnum(R.hh)} h-h</small></dt><dd>${money(R.mo)}</dd></div>
+      <div><dt>Materiales y repuestos</dt><dd>${money(R.mat)}</dd></div>
+      <div><dt>Otros costos directos</dt><dd>${money(R.otros)}</dd></div>
+      <div class="sub"><dt>Costo directo</dt><dd>${money(R.directo)}</dd></div>
+      <div><dt>Gastos indirectos<small>${fnum(num(c.indirectos))} %</small></dt><dd>${money(R.ind)}</dd></div>
+      <div><dt>Imprevistos<small>${fnum(num(c.imprevistos))} %</small></dt><dd>${money(R.imp)}</dd></div>
+      <div class="sub"><dt>Costo total<small>mínimo sin perder</small></dt><dd>${money(R.costo)}</dd></div>
+      <div class="${R.util>=0?"gain":"loss"}"><dt>${R.util>=0?"Utilidad":"Pérdida"}<small>margen ${pct(R.margen)}</small></dt><dd>${money(R.util)}</dd></div>
+      <div class="big"><dt>Precio sin IVA</dt><dd>${money(R.precio)}</dd></div>
+      <div><dt>IVA 13 %</dt><dd>${money(R.iva)}</dd></div>
+      <div class="total"><dt>Total a cotizar</dt><dd>${money(R.total)}</dd></div>
+      ${R.ret ? `<div class="net"><dt>Retención 1 % del cliente</dt><dd>-${money(R.ret)}</dd></div><div class="net"><dt>Recibirás en el pago</dt><dd>${money(R.recibe)}</dd></div>` : ""}
+    </dl>
+    ${R.manual!=null ? `<p class="hint" style="padding:0 18px">Con tu margen deseado de ${fnum(num(c.margen))} % el precio sugerido sería ${money(R.sugerido)}.</p>` : ""}
+    <div class="bar-box">
+      <div class="bar-label">Cómo se reparte el precio</div>
+      <div class="bar">${bar}</div>
+      <div class="legend">${segs.filter(s=>s[1]>0).map(s=>`<span style="--c:var(${s[2]})">${s[0]}</span>`).join("")}</div>
+    </div>
+    <div class="kpis">
+      <div><small>Margen real</small><b>${pct(R.margen)}</b></div>
+      <div><small>Recargo sobre costo</small><b>${pct(R.markup)}</b></div>
+      <div><small>Precio por hora-hombre</small><b>${pxh}</b></div>
+    </div>
+    <div class="out-acts">
+      <button class="btn primary" data-act="to-quote" ${R.directo<=0?"disabled":""}>Crear cotización con este cálculo</button>
+      <div class="pair"><button class="btn sm" data-act="calc-new">Cálculo nuevo</button><button class="btn sm" data-act="calc-example">Cargar ejemplo</button></div>
+    </div>`;
+  lsSet("cyc-calc", S.calc);
+}
+function calcToQuote(){
+  const c = S.calc, R = calcular(c);
+  if(R.directo <= 0){ toast("Agrega costos antes de crear la cotización."); return; }
+  const f = R.precio / R.directo;
+  let lineas = [];
+  if(c.detalle){
+    c.mo.forEach(r=>{ const h = num(r.personas)*num(r.horas); if(h>0 && num(r.tarifa)>0) lineas.push({desc:`Mano de obra: ${r.rol||"técnico"}${num(r.personas)>1?` (${fnum(num(r.personas))} personas)`:""}`, cant:h, unidad:"h", pu:r2(num(r.tarifa)*f)}); });
+    c.mat.forEach(r=>{ if(num(r.cant)>0 && num(r.costo)>0) lineas.push({desc:r.desc||"Material", cant:num(r.cant), unidad:r.unidad||"u", pu:r2(num(r.costo)*(1+num(r.merma)/100)*f)}); });
+    c.otros.forEach(r=>{ if(num(r.cant)>0 && num(r.costo)>0) lineas.push({desc:r.desc||"Servicio", cant:num(r.cant), unidad:r.unidad||"u", pu:r2(num(r.costo)*f)}); });
+    const diff = r2(R.precio - lineas.reduce((s,l)=>s+l.cant*l.pu,0));
+    const uno = lineas.find(l=>l.cant===1);
+    if(diff !== 0 && uno) uno.pu = r2(uno.pu + diff);
+  } else {
+    lineas = [{desc:c.titulo || "Servicio técnico", cant:1, unidad:"servicio", pu:R.precio}];
+  }
+  const E = S.empresa;
+  const q = {
+    id:uid(), numero:siguienteNumero(), fecha:hoy(), validez:num(E.validez)||15, estado:"borrador",
+    cliente:{nombre:c.cliente||"", contacto:"", correo:"", telefono:"", direccion:"", nrc:""},
+    titulo:c.titulo||"Servicio técnico", lineas, pago:E.pago, plazo:"", garantia:E.garantia, notas:"",
+    costoInterno:r2(R.costo), retencion:!!c.retencion, creada:new Date().toISOString()
+  };
+  guardar("cotizaciones", q.id, q);
+  S.tab = "cot"; S.edit = clone(q); S.editDirty = false; location.hash = "cot";
+  renderTabs(); renderView(); window.scrollTo(0,0);
+  toast(`Cotización ${q.numero} creada.`);
+}
+
+/* ---------- quotes list ---------- */
+function viewCotizaciones(){
+  const F = S.cotFilter;
+  const list = S.cotizaciones.slice().sort((a,b)=>(b.numero||"").localeCompare(a.numero||""))
+    .filter(q=>F==="todas" || estadoQ(q)===F);
+  const hasEx = S.cotizaciones.some(q=>q.ejemplo);
+  const filt = [["todas","Todas"],["borrador","Borradores"],["enviada","Enviadas"],["aceptada","Aceptadas"],["rechazada","Rechazadas"],["vencida","Vencidas"]];
+  const rows = list.map(q=>{
+    const T = totalesQ(q), st = estadoQ(q), ch = Q_CHIP[st]||Q_CHIP.borrador;
+    const mg = q.costoInterno>0 && T.sub>0 ? (T.sub-q.costoInterno)/T.sub : null;
+    const mcls = mg==null ? "" : mg < 0 ? "bad" : mg < num(S.empresa.margenMin)/100 ? "warn" : "ok";
+    return `<tr data-act="open-quote" data-id="${esc(q.id)}">
+      <td class="mono">${esc(q.numero)}</td><td class="muted">${fFecha(q.fecha)}</td>
+      <td>${esc(q.cliente?.nombre||"Sin cliente")}${q.ejemplo?' <span class="chip ex">Ejemplo</span>':""}</td>
+      <td class="muted">${esc(q.titulo)}</td>
+      <td class="r mono">${money(T.total)}</td>
+      <td class="r">${mg==null?'<span class="muted">—</span>':`<span class="chip ${mcls}">${pct(mg)}</span>`}</td>
+      <td><span class="chip ${ch[1]}">${ch[0]}</span></td></tr>`;
+  }).join("");
+  return `<div class="page-h"><h2>Cotizaciones</h2><div class="acts">
+      ${hasEx?'<button class="btn ghost" data-act="del-examples" data-col="cotizaciones">Borrar ejemplos</button>':""}
+      <button class="btn" data-act="new-quote">Nueva en blanco</button>
+      <button class="btn primary" data-act="tab" data-tab="calc">Calcular una nueva</button></div></div>
+    <div class="filters">${filt.map(([k,l])=>`<button data-act="cot-filter" data-f="${k}" aria-pressed="${F===k}">${l}</button>`).join("")}</div>
+    ${S.cotizaciones.length===0 ? `<div class="empty"><p>Todavía no tienes cotizaciones. Empieza en la calculadora: llenas tus costos y con un clic se convierte en una cotización formal.</p><button class="btn primary" data-act="tab" data-tab="calc">Ir a la calculadora</button></div>`
+      : list.length===0 ? `<div class="empty"><p>No hay cotizaciones con ese estado.</p></div>`
+      : `<div class="panel" style="padding:6px 10px"><div class="tbl-wrap"><table class="list"><thead><tr><th>N.º</th><th>Fecha</th><th>Cliente</th><th>Trabajo</th><th class="r">Total</th><th class="r">Margen</th><th>Estado</th></tr></thead><tbody>${rows}</tbody></table></div></div>`}`;
+}
+
+/* ---------- quote editor ---------- */
+function lineRow(l,i){
+  return `<tr>
+    <td><input type="text" id="ql-${i}-desc" class="w-desc" data-q="lineas.${i}.desc" value="${esc(l.desc)}" aria-label="Descripción"></td>
+    <td><input type="number" id="ql-${i}-cant" class="w-num" data-q="lineas.${i}.cant" value="${esc(l.cant)}" min="0" step="any" aria-label="Cantidad"></td>
+    <td><input type="text" id="ql-${i}-unidad" class="w-unit" data-q="lineas.${i}.unidad" value="${esc(l.unidad)}" aria-label="Unidad"></td>
+    <td><input type="number" id="ql-${i}-pu" class="w-num" data-q="lineas.${i}.pu" value="${esc(l.pu)}" min="0" step="0.01" aria-label="Precio unitario"></td>
+    <td class="subt" id="ql-sub-${i}"></td>
+    <td><button class="x" data-act="q-del-line" data-i="${i}" aria-label="Quitar línea">×</button></td></tr>`;
+}
+function viewEditor(){
+  const q = S.edit, c = q.cliente || (q.cliente = {});
+  const inp = (label, path, val, type="text", extra="") => `<label class="f ${extra}">${label}<input type="${type}" id="q-${path.replace(/\./g,"-")}" data-q="${path}" value="${esc(val)}"></label>`;
+  return `<button class="btn ghost back" data-act="q-back">← Volver a cotizaciones</button>
+  <div class="editor">
+    <div class="editor-main">
+      <section class="panel">
+        <div class="panel-h"><h2>Cotización <span class="mono">${esc(q.numero)}</span></h2>${q.ejemplo?'<span class="chip ex">Ejemplo</span>':""}</div>
+        <div class="fields">
+          ${inp("N.º de cotización","numero",q.numero)}
+          ${inp("Fecha","fecha",q.fecha,"date")}
+          ${inp("Validez (días)","validez",q.validez,"number")}
+        </div>
+      </section>
+      <section class="panel">
+        <div class="panel-h"><h2>Cliente</h2></div>
+        <div class="fields">
+          ${inp("Empresa o nombre","cliente.nombre",c.nombre,"text","span2")}
+          ${inp("Atención a","cliente.contacto",c.contacto)}
+          ${inp("NRC del cliente","cliente.nrc",c.nrc)}
+          ${inp("Teléfono","cliente.telefono",c.telefono)}
+          ${inp("Correo","cliente.correo",c.correo,"email")}
+          ${inp("Dirección","cliente.direccion",c.direccion,"text","span2")}
+        </div>
+      </section>
+      <section class="panel">
+        <div class="panel-h"><h2>Detalle del servicio</h2></div>
+        <div class="fields" style="margin-bottom:12px">${inp("Título del trabajo","titulo",q.titulo,"text","span2")}</div>
+        <div class="tbl-wrap"><table class="grid-in"><thead><tr><th>Descripción</th><th>Cant.</th><th>Unidad</th><th>Precio unit.</th><th class="r">Total</th><th></th></tr></thead>
+        <tbody>${(q.lineas||[]).map(lineRow).join("")}</tbody></table></div>
+        <div class="row-actions"><button class="btn sm" data-act="q-add-line">+ Agregar línea</button></div>
+        <label class="check" style="margin-top:12px"><input type="checkbox" id="q-retencion" data-q="retencion" ${q.retencion?"checked":""}><span>El cliente es gran contribuyente (retiene 1 %)</span></label>
+      </section>
+      <section class="panel">
+        <div class="panel-h"><h2>Condiciones</h2></div>
+        <div class="fields">
+          ${inp("Forma de pago","pago",q.pago,"text","span2")}
+          ${inp("Plazo de ejecución","plazo",q.plazo,"text")}
+          ${inp("Garantía","garantia",q.garantia,"text")}
+          <label class="f span2">Notas para el cliente<textarea id="q-notas" data-q="notas" rows="3" placeholder="Alcance, exclusiones, requisitos del sitio…">${esc(q.notas)}</textarea></label>
+        </div>
+      </section>
+    </div>
+    <aside class="editor-side">
+      <div class="side-card" id="q-totals"></div>
+      <div class="side-card">
+        <label class="f">Estado
+          <select id="q-estado" data-q="estado">
+            ${["borrador","enviada","aceptada","rechazada"].map(s=>`<option value="${s}" ${q.estado===s?"selected":""}>${Q_CHIP[s][0]}</option>`).join("")}
+          </select></label>
+        <div class="side-acts" style="margin-top:12px">
+          <button class="btn primary" data-act="q-save">Guardar</button>
+          <button class="btn" data-act="q-pdf" ${window.jspdf ? "" : "disabled"} title="${window.jspdf ? "" : "Necesitas conexión a internet para generar el PDF"}">Descargar PDF</button>
+          <button class="btn" data-act="q-to-invoice">Registrar factura de esta cotización</button>
+          <button class="btn ghost" data-act="q-dup">Duplicar</button>
+          <button class="btn ghost danger" data-act="q-del">Eliminar</button>
+          <span id="q-dirty" class="saved"></span>
+        </div>
+      </div>
+    </aside>
+  </div>
+  <div class="sheet-h"><h2>Así la verá tu cliente</h2><small>Vista previa del PDF (tamaño carta)</small></div>
+  <div class="sheet-wrap"><div class="sheet" id="q-sheet"></div></div>`;
+}
+function updateEditor(){
+  const q = S.edit; if(!q) return;
+  const T = totalesQ(q);
+  (q.lineas||[]).forEach((l,i)=>{ const e=$("#ql-sub-"+i); if(e) e.textContent = money(num(l.cant)*num(l.pu)); });
+  const mg = q.costoInterno>0 && T.sub>0 ? (T.sub-q.costoInterno)/T.sub : null;
+  const minM = num(S.empresa.margenMin)/100;
+  let mgHtml = "";
+  if(mg != null){
+    const cls = mg < 0 ? "v-bad" : mg < minM ? "v-warn" : "v-ok";
+    const t = mg < 0 ? "Pierdes dinero" : mg < minM ? "Margen bajo" : "Precio sano";
+    mgHtml = `<div class="verdict ${cls}" style="margin:12px 0 0"><strong>${t}</strong><span>Costo interno ${money(q.costoInterno)} · utilidad ${money(T.sub-q.costoInterno)} (${pct(mg)}). Solo tú ves esto.</span></div>`;
+  } else {
+    mgHtml = `<p class="hint">Esta cotización no viene de la calculadora, así que no conozco su costo. Calcúlala primero para saber si ganas.</p>`;
+  }
+  $("#q-totals").innerHTML = `<h3>Totales</h3>
+    <div class="totline"><span>Subtotal</span><b>${money(T.sub)}</b></div>
+    <div class="totline"><span>IVA 13 %</span><b>${money(T.iva)}</b></div>
+    <div class="totline grand"><span>Total</span><b>${money(T.total)}</b></div>
+    ${T.ret?`<div class="totline"><span>Retención 1 %</span><b>-${money(T.ret)}</b></div><div class="totline"><span>Líquido a pagar</span><b>${money(T.liquido)}</b></div>`:""}
+    ${mgHtml}`;
+  const d = $("#q-dirty"); if(d){ d.className = S.editDirty ? "dirty" : "saved"; d.textContent = S.editDirty ? "Cambios sin guardar" : "Todo guardado"; }
+  $("#q-sheet").innerHTML = sheetHTML(q, T);
+}
+function sheetHTML(q, T){
+  const E = S.empresa, c = q.cliente || {};
+  const ids = [E.nit && "NIT " + esc(E.nit), E.nrc && "NRC " + esc(E.nrc)].filter(Boolean).join(" · ");
+  const cont = [E.telefono && "Tel. " + esc(E.telefono), esc(E.correo)].filter(Boolean).join(" · ");
+  const cond = [["Forma de pago",q.pago],["Plazo de ejecución",q.plazo],["Garantía",q.garantia],["Validez",`${num(q.validez)} días, hasta el ${fFechaL(addDays(q.fecha,q.validez))}`],["Notas",q.notas]].filter(x=>String(x[1]||"").trim());
+  return `<div class="s-top">
+      <div class="s-emp"><b>${esc(E.nombre)}</b>${E.giro?`<p>${esc(E.giro)}</p>`:""}${ids?`<p>${ids}</p>`:""}${E.direccion?`<p>${esc(E.direccion)}</p>`:""}${cont?`<p>${cont}</p>`:""}</div>
+      <div class="s-doc"><div class="tag">COTIZACIÓN</div>
+        <div class="kv"><span>N.º</span><b>${esc(q.numero)}</b></div>
+        <div class="kv"><span>Fecha</span><b>${fFecha(q.fecha)}</b></div>
+        <div class="kv"><span>Válida hasta</span><b>${fFecha(addDays(q.fecha,q.validez))}</b></div></div>
+    </div>
+    <hr>
+    <div class="lbl">Cliente</div>
+    <div class="s-cli">
+      <div><b>${esc(c.nombre||"Nombre del cliente")}</b>${c.contacto?`<div>Atención: ${esc(c.contacto)}</div>`:""}${c.direccion?`<div>${esc(c.direccion)}</div>`:""}</div>
+      <div>${c.nrc?`<div>NRC: ${esc(c.nrc)}</div>`:""}${c.telefono?`<div>Tel.: ${esc(c.telefono)}</div>`:""}${c.correo?`<div>${esc(c.correo)}</div>`:""}</div>
+    </div>
+    <div class="lbl">Descripción del servicio</div>
+    <div class="s-title">${esc(q.titulo)}</div>
+    <table><thead><tr><th style="width:28px">#</th><th>Descripción</th><th class="r">Cantidad</th><th class="r">Precio unit.</th><th class="r">Total</th></tr></thead>
+    <tbody>${(q.lineas||[]).map((l,i)=>`<tr><td>${i+1}</td><td>${esc(l.desc)}</td><td class="num">${fnum(num(l.cant))} ${esc(l.unidad)}</td><td class="num">${money(num(l.pu))}</td><td class="num">${money(num(l.cant)*num(l.pu))}</td></tr>`).join("")}</tbody></table>
+    <div class="s-tot">
+      <div><span>Subtotal</span><span class="num">${money(T.sub)}</span></div>
+      <div><span>IVA 13 %</span><span class="num">${money(T.iva)}</span></div>
+      <div class="g"><span>Total US$</span><span class="num">${money(T.total)}</span></div>
+      ${T.ret?`<div><span>(-) Retención IVA 1 %</span><span class="num">${money(T.ret)}</span></div><div><span>Líquido a pagar</span><span class="num">${money(T.liquido)}</span></div>`:""}
+    </div>
+    <div class="s-words"><b>Son:</b> ${montoLetras(T.total)}</div>
+    ${cond.length?`<div class="s-cond">${cond.map(x=>`<span>${x[0]}</span><div>${esc(x[1])}</div>`).join("")}</div>`:""}
+    <div class="s-sign"><b>${esc(E.responsable||"Nombre del responsable")}</b><span>${esc(E.cargo||"Cargo")}</span><span>${esc(E.nombre)}</span></div>`;
+}
+
+/* ---------- PDF ---------- */
+function pdfCotizacion(q){
+  const E = S.empresa, T = totalesQ(q), c = q.cliente || {};
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:"pt", format:"letter"});
+  const W = 612, H = 792, M = 50, ACC = [43,106,78], INK = [26,34,31], GR = [100,110,105], SOFT = [241,244,240];
+  let y = M;
+  const txt = (t,x,yy,o) => doc.text(String(t ?? ""), x, yy, o);
+  const ensure = h => { if(y + h > H - M - 20){ doc.addPage(); y = M; } };
+  // Company
+  doc.setTextColor(...INK); doc.setFont("helvetica","bold"); doc.setFontSize(15);
+  doc.splitTextToSize(E.nombre||"", 300).forEach((l,i)=>txt(l, M, y+12+i*17));
+  let iy = y + 12 + doc.splitTextToSize(E.nombre||"",300).length*17;
+  doc.setFont("helvetica","normal"); doc.setFontSize(8.5); doc.setTextColor(...GR);
+  [E.giro, [E.nit&&"NIT "+E.nit, E.nrc&&"NRC "+E.nrc].filter(Boolean).join("   "), E.direccion, [E.telefono&&"Tel. "+E.telefono, E.correo].filter(Boolean).join("   ")]
+    .filter(Boolean).forEach(t=>doc.splitTextToSize(t,300).forEach(l=>{ txt(l,M,iy); iy += 11; }));
+  // Doc block
+  const bx = W - M - 180;
+  doc.setFillColor(...ACC); doc.rect(bx, y, 180, 22, "F");
+  doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(11); txt("COTIZACIÓN", bx+90, y+15, {align:"center"});
+  let ry = y + 38; doc.setFontSize(9);
+  [["N.º", q.numero],["Fecha", fFecha(q.fecha)],["Válida hasta", fFecha(addDays(q.fecha,q.validez))]].forEach(([k,v])=>{
+    doc.setFont("helvetica","normal"); doc.setTextColor(...GR); txt(k, bx, ry);
+    doc.setFont("helvetica","bold"); doc.setTextColor(...INK); txt(v, W-M, ry, {align:"right"});
+    doc.setDrawColor(217,222,215); doc.setLineWidth(.5); doc.line(bx, ry+4, W-M, ry+4); ry += 16;
+  });
+  y = Math.max(iy, ry) + 10;
+  doc.setDrawColor(...ACC); doc.setLineWidth(1.2); doc.line(M, y, W-M, y); y += 20;
+  // Client
+  const label = t => { doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(...ACC); txt(t.toUpperCase(), M, y); y += 13; };
+  label("Cliente");
+  doc.setTextColor(...INK); doc.setFont("helvetica","bold"); doc.setFontSize(11); txt(c.nombre||"", M, y);
+  doc.setFont("helvetica","normal"); doc.setFontSize(9);
+  const L = [c.contacto && "Atención: "+c.contacto, c.direccion].filter(Boolean);
+  const Rr = [c.nrc && "NRC: "+c.nrc, c.telefono && "Tel.: "+c.telefono, c.correo].filter(Boolean);
+  let ly = y + 13, rry = y;
+  L.forEach(t=>doc.splitTextToSize(t,250).forEach(l=>{ txt(l,M,ly); ly += 12; }));
+  Rr.forEach(t=>{ txt(t, M+300, rry); rry += 12; });
+  y = Math.max(ly, rry) + 12;
+  label("Descripción del servicio");
+  doc.setTextColor(...INK); doc.setFont("helvetica","bold"); doc.setFontSize(11.5);
+  doc.splitTextToSize(q.titulo||"", W-2*M).forEach(l=>{ txt(l,M,y); y += 15; });
+  y += 4;
+  // Table
+  const xN = M+6, xD = M+26, dW = 290, xC = W-M-155, xP = W-M-78, xT = W-M-6;
+  const head = () => {
+    doc.setFillColor(...ACC); doc.rect(M, y, W-2*M, 20, "F");
+    doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(8.5);
+    txt("#", xN, y+13); txt("Descripción", xD, y+13); txt("Cantidad", xC, y+13, {align:"right"}); txt("Precio unit.", xP, y+13, {align:"right"}); txt("Total", xT, y+13, {align:"right"});
+    y += 20;
+  };
+  head();
+  doc.setFontSize(9);
+  (q.lineas||[]).forEach((l,i)=>{
+    doc.setFont("helvetica","normal");
+    const lines = doc.splitTextToSize(l.desc||"", dW);
+    const h = Math.max(18, lines.length*11 + 7);
+    if(y + h > H - M - 20){ doc.addPage(); y = M; head(); doc.setFontSize(9); doc.setFont("helvetica","normal"); }
+    if(i%2===1){ doc.setFillColor(...SOFT); doc.rect(M, y, W-2*M, h, "F"); }
+    doc.setTextColor(...INK);
+    txt(String(i+1), xN, y+12);
+    lines.forEach((t,j)=>txt(t, xD, y+12+j*11));
+    txt(`${fnum(num(l.cant))} ${l.unidad||""}`, xC, y+12, {align:"right"});
+    txt(money(num(l.pu)), xP, y+12, {align:"right"});
+    txt(money(num(l.cant)*num(l.pu)), xT, y+12, {align:"right"});
+    doc.setDrawColor(217,222,215); doc.setLineWidth(.5); doc.line(M, y+h, W-M, y+h);
+    y += h;
+  });
+  y += 8;
+  // Totals
+  const rows = [["Subtotal", money(T.sub)],["IVA 13 %", money(T.iva)]];
+  ensure(90);
+  const tx = W - M - 200;
+  doc.setFontSize(9.5);
+  rows.forEach(([k,v])=>{ doc.setFont("helvetica","normal"); doc.setTextColor(...INK); txt(k, tx+8, y+12); txt(v, xT, y+12, {align:"right"}); y += 17; });
+  doc.setFillColor(...ACC); doc.rect(tx, y, 200, 21, "F"); doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(10.5);
+  txt("Total US$", tx+8, y+14); txt(money(T.total), xT, y+14, {align:"right"}); y += 25;
+  if(T.ret){ doc.setTextColor(...INK); doc.setFont("helvetica","normal"); doc.setFontSize(9);
+    txt("(-) Retención IVA 1 %", tx+8, y+10); txt(money(T.ret), xT, y+10, {align:"right"}); y += 15;
+    doc.setFont("helvetica","bold"); txt("Líquido a pagar", tx+8, y+10); txt(money(T.liquido), xT, y+10, {align:"right"}); y += 17; }
+  y += 6;
+  doc.setTextColor(...INK); doc.setFontSize(8.5);
+  const words = doc.splitTextToSize("Son: " + montoLetras(T.total), W-2*M);
+  ensure(words.length*11+10); doc.setFont("helvetica","normal"); words.forEach(l=>{ txt(l,M,y); y += 11; });
+  y += 12;
+  // Conditions
+  const cond = [["Forma de pago",q.pago],["Plazo de ejecución",q.plazo],["Garantía",q.garantia],["Validez",`${num(q.validez)} días, hasta el ${fFechaL(addDays(q.fecha,q.validez))}`],["Notas",q.notas]].filter(x=>String(x[1]||"").trim());
+  if(cond.length){ ensure(40); label("Condiciones"); doc.setFontSize(9);
+    cond.forEach(([k,v])=>{ const ls = doc.splitTextToSize(String(v), W-2*M-120); ensure(ls.length*12+4);
+      doc.setFont("helvetica","normal"); doc.setTextColor(...GR); txt(k, M, y);
+      doc.setTextColor(...INK); ls.forEach((l,j)=>txt(l, M+120, y+j*12)); y += ls.length*12 + 4; }); }
+  // Signature
+  ensure(80); y += 44;
+  doc.setDrawColor(...INK); doc.setLineWidth(.7); doc.line(M, y, M+220, y); y += 13;
+  doc.setFont("helvetica","bold"); doc.setFontSize(9.5); doc.setTextColor(...INK); txt(E.responsable||"", M, y); y += 12;
+  doc.setFont("helvetica","normal"); doc.setTextColor(...GR); doc.setFontSize(8.5);
+  if(E.cargo){ txt(E.cargo, M, y); y += 11; } txt(E.nombre||"", M, y);
+  const n = doc.getNumberOfPages();
+  for(let p=1; p<=n; p++){ doc.setPage(p); doc.setFontSize(7.5); doc.setTextColor(...GR); txt(`${q.numero} · Página ${p} de ${n}`, W-M, H-28, {align:"right"}); }
+  return doc.output("arraybuffer");
+}
+async function descargarPDF(){
+  const q = S.edit; if(!q) return;
+  if(!window.jspdf){ toast("No se pudo cargar el generador de PDF. Revisa tu conexión a internet y recarga la página."); return; }
+  if(S.editDirty) await guardarEdicion(true);
+  try {
+    const buf = pdfCotizacion(q);
+    const name = `${q.numero} ${(q.cliente?.nombre||"").replace(/[\\/:*?"<>|]/g,"")}`.trim() + ".pdf";
+    descargarBlob(new Blob([buf], {type:"application/pdf"}), name);
+    toast("PDF descargado.");
+  } catch(e){
+    toast("No se pudo generar el PDF. Inténtalo de nuevo.");
+  }
+}
+async function guardarEdicion(silent){
+  const q = S.edit; if(!q) return;
+  q.validez = num(q.validez);
+  const ok = await guardar("cotizaciones", q.id, q);
+  if(ok){ S.editDirty = false; updateEditor(); if(!silent) toast("Cotización guardada."); }
+}
+
+/* ---------- invoices ---------- */
+function viewFacturas(){
+  const F = S.facFilter, today = hoy(), mes = today.slice(0,7);
+  const all = S.facturas;
+  const pend = all.filter(f=>["pendiente","vencida"].includes(estadoF(f)));
+  const late = pend.filter(f=>estadoF(f)==="vencida");
+  const cobradoMes = all.filter(f=>f.estado==="pagada" && (f.fechaPago||"").startsWith(mes));
+  const factMes = all.filter(f=>f.estado!=="anulada" && (f.fecha||"").startsWith(mes));
+  const sum = (arr,k) => arr.reduce((s,f)=>s+totalesF(f)[k],0);
+  const list = all.slice().sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""))
+    .filter(f=> F==="todas" || (F==="porcobrar" ? ["pendiente","vencida"].includes(estadoF(f)) : estadoF(f)===F));
+  const hasEx = all.some(f=>f.ejemplo);
+  const rows = list.map(f=>{
+    const T = totalesF(f), st = estadoF(f), ch = F_CHIP[st];
+    const dias = st==="vencida" ? Math.round((new Date(today)-new Date(f.vence))/864e5) : null;
+    return `<tr data-act="open-inv" data-id="${esc(f.id)}">
+      <td class="muted">${fFecha(f.fecha)}</td>
+      <td><span class="mono">${esc(f.numero||"—")}</span><div class="muted">${f.tipo==="FCF"?"Consumidor final":"Crédito fiscal"}</div></td>
+      <td>${esc(f.cliente||"")}${f.ejemplo?' <span class="chip ex">Ejemplo</span>':""}<div class="muted">${esc(f.concepto||"")}</div></td>
+      <td class="r mono">${money(T.cobrar)}</td>
+      <td class="muted">${f.estado==="pagada" ? "Pagada " + fFecha(f.fechaPago) : fFecha(f.vence)}${dias?`<div style="color:var(--bad)">${dias} días de atraso</div>`:""}</td>
+      <td><span class="chip ${ch[1]}">${ch[0]}</span></td>
+      <td class="r">${["pendiente","vencida"].includes(st)?`<button class="btn sm" data-act="inv-paid" data-id="${esc(f.id)}">Marcar pagada</button>`:""}</td></tr>`;
+  }).join("");
+  const filt = [["todas","Todas"],["porcobrar","Por cobrar"],["vencida","Vencidas"],["pagada","Pagadas"],["anulada","Anuladas"]];
+  return `<div class="page-h"><h2>Facturas</h2><div class="acts">
+      ${hasEx?'<button class="btn ghost" data-act="del-examples" data-col="facturas">Borrar ejemplos</button>':""}
+      <button class="btn primary" data-act="new-inv">Registrar factura</button></div></div>
+    <div class="tiles">
+      <div class="tile"><small>Por cobrar</small><b>${money(sum(pend,"cobrar"))}</b><span>${pend.length} factura${pend.length===1?"":"s"}</span></div>
+      <div class="tile ${late.length?"late":""}"><small>Vencido</small><b>${money(sum(late,"cobrar"))}</b><span>${late.length} factura${late.length===1?"":"s"} con atraso</span></div>
+      <div class="tile good"><small>Cobrado este mes</small><b>${money(sum(cobradoMes,"cobrar"))}</b><span>${MESES_L[+mes.slice(5)-1]}</span></div>
+      <div class="tile"><small>Facturado este mes</small><b>${money(sum(factMes,"total"))}</b><span>IVA generado ${money(sum(factMes,"iva"))}</span></div>
+    </div>
+    <div class="filters">${filt.map(([k,l])=>`<button data-act="fac-filter" data-f="${k}" aria-pressed="${F===k}">${l}</button>`).join("")}</div>
+    ${all.length===0 ? `<div class="empty"><p>Registra aquí cada factura que emites para saber quién te debe, cuánto y desde cuándo.</p><button class="btn primary" data-act="new-inv">Registrar la primera</button></div>`
+      : list.length===0 ? `<div class="empty"><p>No hay facturas con ese estado.</p></div>`
+      : `<div class="panel" style="padding:6px 10px"><div class="tbl-wrap"><table class="list"><thead><tr><th>Fecha</th><th>N.º / tipo</th><th>Cliente y concepto</th><th class="r">A cobrar</th><th>Vence</th><th>Estado</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></div>`}
+    <p class="note">Esta página es tu control interno de cobros. El documento legal sigue siendo el DTE que emites en tu sistema de facturación electrónica; copia aquí su número o código de generación para ubicarlo rápido.</p>`;
+}
+function nuevaFactura(pref){
+  const E = S.empresa, f = hoy();
+  return Object.assign({id:uid(), tipo:"CCF", numero:"", fecha:f, cliente:"", nrc:"", concepto:"", subtotal:0, retencion:false,
+    plazo:num(E.plazoCredito)||30, vence:addDays(f, num(E.plazoCredito)||30), estado:"pendiente", fechaPago:"", cotizacion:"", _nueva:true}, pref||{});
+}
+function renderModal(){
+  const root = $("#modal-root");
+  if(!S.inv){ root.innerHTML = ""; return; }
+  const f = S.inv;
+  const inp = (label, k, val, type="text", extra="") => `<label class="f ${extra}">${label}<input type="${type}" id="inv-${k}" data-inv="${k}" value="${esc(val)}"></label>`;
+  root.innerHTML = `<div class="overlay" data-act="inv-close-bg"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="inv-t">
+    <h2 id="inv-t">${f._nueva?"Registrar factura":"Factura " + esc(f.numero||"")}</h2>
+    <div class="fields">
+      <label class="f">Tipo de documento<select id="inv-tipo" data-inv="tipo"><option value="CCF" ${f.tipo==="CCF"?"selected":""}>Comprobante de crédito fiscal</option><option value="FCF" ${f.tipo==="FCF"?"selected":""}>Factura consumidor final</option></select></label>
+      ${inp("N.º de control o código DTE","numero",f.numero)}
+      ${inp("Cliente","cliente",f.cliente,"text","span2")}
+      ${inp("NRC del cliente","nrc",f.nrc)}
+      ${inp("Cotización relacionada","cotizacion",f.cotizacion)}
+      ${inp("Concepto","concepto",f.concepto,"text","span2")}
+      ${inp("Monto sin IVA (US$)","subtotal",f.subtotal,"number")}
+      ${inp("Fecha de emisión","fecha",f.fecha,"date")}
+      ${inp("Plazo de crédito (días)","plazo",f.plazo,"number")}
+      ${inp("Fecha de vencimiento","vence",f.vence,"date")}
+      <label class="f">Estado<select id="inv-estado" data-inv="estado">${["pendiente","pagada","anulada"].map(s=>`<option value="${s}" ${f.estado===s?"selected":""}>${F_CHIP[s][0]}</option>`).join("")}</select></label>
+      ${inp("Fecha de pago","fechaPago",f.fechaPago,"date")}
+    </div>
+    <label class="check" style="margin-top:12px"><input type="checkbox" id="inv-retencion" data-inv="retencion" ${f.retencion?"checked":""}><span>El cliente me retiene el 1 % (gran contribuyente)</span></label>
+    <div class="calc-line" id="inv-calc"></div>
+    <div class="m-acts">
+      <div>${f._nueva?"":`<button class="btn ghost danger" data-act="inv-del">Eliminar</button>`}</div>
+      <div><button class="btn" data-act="inv-close">Cancelar</button><button class="btn primary" data-act="inv-save">Guardar</button></div>
+    </div>
+  </div></div>`;
+  updateInvCalc();
+}
+function updateInvCalc(){
+  const e = $("#inv-calc"); if(!e || !S.inv) return;
+  const T = totalesF(S.inv);
+  e.innerHTML = `<span>IVA 13 % <b>${money(T.iva)}</b></span><span>Total <b>${money(T.total)}</b></span>${T.ret?`<span>Retención <b>-${money(T.ret)}</b></span>`:""}<span>A cobrar <b>${money(T.cobrar)}</b></span>`;
+}
+
+/* ---------- learn ---------- */
+function viewAprende(){
+  const E = S.empresa, ch = r2(num(E.salario)*(1+num(E.prestaciones)/100)/(num(E.horasMes)||1));
+  const L = [
+    ["costo-total","Cotiza sobre el costo total","El error que más dinero hace perder es poner precio mirando solo los materiales. Un trabajo tiene tres capas de costo, y el precio tiene que pagar las tres antes de dejarte ganancia.",
+      `<ul><li><b>Costo directo:</b> lo que gastas por hacer este trabajo. Mano de obra, materiales, repuestos, transporte, viáticos, alquiler de equipo, subcontratos.</li><li><b>Gastos indirectos:</b> lo que el negocio gasta exista o no este trabajo. Local, luz, internet, contador, vehículo, herramientas que se desgastan, tu tiempo cotizando.</li><li><b>Imprevistos:</b> una reserva para lo que casi siempre pasa: una pieza que no llega, un tornillo barrido, una visita de más.</li></ul><div class="example">Costo directo $800 + indirectos 15 % ($120) + imprevistos 5 % ($40) = <b class="mono">$960</b>. Si cobras $900 creyendo que ganas $100, en realidad pierdes $60.</div>`],
+    ["hora","Tu hora cuesta más que el salario","A un técnico le pagas más que su salario: el patrono aporta al ISSS y a la AFP, y además hay aguinaldo, vacaciones pagadas con su recargo e INSAFORP. Y no todas las horas del mes son facturables: hay traslados, compras, capacitación y tiempos muertos.",
+      `<div class="example">Salario de ${money(num(E.salario))} al mes × (1 + ${fnum(num(E.prestaciones))} % de prestaciones) ÷ ${fnum(num(E.horasMes))} horas productivas = <b class="mono">${money(ch)} por hora</b>. Este es el valor que va en la columna “Costo/hora” de la calculadora. Ajusta los datos en <button class="lnk" data-act="tab" data-tab="empresa">Mi empresa</button>.</div><p class="hint">El porcentaje de prestaciones es aproximado. Pídele a tu contador el costo patronal real de tu planilla.</p>`],
+    ["margen","Margen y recargo no son lo mismo","Si a un costo de $1,000 le sumas 30 %, cobras $1,300. Pero tu ganancia de $300 es solo el 23 % del precio. Para que la ganancia sea el 30 % del precio, divide el costo entre 0.70.",
+      `<div class="example"><span class="mono">Precio = Costo total ÷ (1 − margen)</span><br><span class="mono">$1,000 ÷ 0.70 = $1,428.57</span> → ganancia de $428.57, que sí es el 30 % del precio.</div>
+       <div class="mini"><label class="f">Costo total (US$)<input type="number" id="mini-costo" value="1000" min="0" step="1"></label><label class="f">Porcentaje (%)<input type="number" id="mini-pct" value="30" min="0" max="90" step="1"></label></div>
+       <div class="mini-out" id="mini-out"></div>`],
+    ["indirectos","Cómo sacar tu porcentaje de indirectos","Suma lo que gasta el negocio en un mes normal sin contar trabajos específicos, y divídelo entre lo que suman tus costos directos de ese mes.",
+      `<div class="example">Gastos fijos del mes: local $350 + luz e internet $120 + contador $150 + combustible y mantenimiento del pick-up $380 + herramientas $200 = <b class="mono">$1,200</b>.<br>Costos directos de los trabajos del mes: <b class="mono">$8,000</b>.<br>Indirectos = 1,200 ÷ 8,000 = <b class="mono">15 %</b>.</div><p class="hint" style="margin-top:10px">Revísalo cada 3 meses. Si el negocio crece y tus gastos fijos no, el porcentaje baja y puedes competir mejor.</p>`],
+    ["imprevistos","Cuánto poner de imprevistos","Depende del riesgo del trabajo. No es ganancia escondida: es la reserva que evita que un problema se coma tu utilidad.",
+      `<ul><li><b>3 %:</b> trabajo repetitivo que conoces bien, en un sitio que ya visitaste.</li><li><b>5 a 7 %:</b> trabajo normal con algo de incertidumbre.</li><li><b>8 a 12 %:</b> equipos viejos, sitio que no has visto, diagnóstico incierto o repuestos importados.</li></ul>`],
+    ["iva","IVA y retención del 1 %","El IVA del 13 % se suma al precio, pero no es tuyo: lo cobras por cuenta de Hacienda y lo declaras cada mes restando el IVA de tus compras. Por eso la calculadora trabaja siempre con el precio sin IVA.",
+      `<p>Si tu cliente es gran contribuyente, al pagarte te retiene el 1 % del precio sin IVA. No lo pierdes: es un anticipo que descuentas en tu declaración de IVA. Pero ese mes recibes menos efectivo, y conviene saberlo antes de comprar materiales.</p><div class="example">Precio sin IVA $2,000 → IVA $260 → total $2,260. Retención 1 %: $20. Recibes <b class="mono">$2,240</b> y acreditas los $20 en tu declaración.</div>`],
+    ["checklist","Antes de enviar la cotización","Revisa esto cada vez. Toma dos minutos y evita discusiones después.",
+      `<ul><li>¿Incluiste horas de traslado, compra de repuestos y pruebas?</li><li>¿Los precios de repuestos son de esta semana y no de hace meses?</li><li>¿Dice claramente qué incluye y qué no incluye el trabajo?</li><li>¿Tiene validez? Sin fecha límite, te pueden aceptar a un precio viejo.</li><li>¿La forma de pago cubre tus compras? Pide anticipo si tienes que comprar repuestos caros.</li><li>¿El margen está por encima de tu mínimo?</li></ul>`],
+    ["errores","Errores comunes que cuestan dinero","Casi todos vienen de cotizar con prisa o por miedo a perder al cliente.",
+      `<ul><li><b>Bajar el precio sin bajar el alcance.</b> Si el cliente pide descuento, quita algo del trabajo o cambia la marca del repuesto.</li><li><b>No cobrar el diagnóstico.</b> La visita para revisar también cuesta horas y transporte.</li><li><b>Aceptar crédito de 60 días sin sumar el costo.</b> Pagas planilla y repuestos hoy y cobras dentro de dos meses.</li><li><b>Copiar el precio de la competencia.</b> Su estructura de costos no es la tuya.</li><li><b>Olvidar la garantía.</b> Si das 90 días de garantía, el imprevisto debe cubrir una posible visita de regreso.</li></ul>`]
+  ];
+  return `<div class="learn">
+    <nav aria-label="Lecciones">${L.map(l=>`<a href="#aprende" data-act="scroll" data-to="l-${l[0]}">${l[1]}</a>`).join("")}</nav>
+    <div>${L.map((l,i)=>`<article class="lesson" id="l-${l[0]}"><div class="k">Lección ${i+1} de ${L.length}</div><h2>${l[1]}</h2><p>${l[2]}</p>${l[3]}</article>`).join("")}</div>
+  </div>`;
+}
+function miniCalc(){
+  const o = $("#mini-out"); if(!o) return;
+  const c = num($("#mini-costo").value), p = Math.min(num($("#mini-pct").value),90)/100;
+  const pm = c*(1+p), pg = p<1 ? c/(1-p) : 0;
+  o.innerHTML = `<div><small>Sumando el ${fnum(p*100)} % al costo</small><b>${money(pm)}</b><span>Ganas ${money(pm-c)}, que es ${pct(pm>0?(pm-c)/pm:0)} del precio</span></div>
+    <div class="good"><small>Margen real del ${fnum(p*100)} %</small><b>${money(pg)}</b><span>Ganas ${money(pg-c)}, que sí es ${pct(pg>0?(pg-c)/pg:0)} del precio</span></div>`;
+}
+
+/* ---------- company ---------- */
+function viewEmpresa(){
+  const E = S.empDraft || (S.empDraft = clone(S.empresa));
+  const inp = (label,k,type="text",extra="",attrs="") => `<label class="f ${extra}">${label}<input type="${type}" id="emp-${k}" data-emp="${k}" value="${esc(E[k])}" ${attrs}></label>`;
+  return `<div class="company">
+    <section class="panel"><h2>Datos de la empresa</h2>
+      <div class="fields">
+        ${inp("Nombre o razón social","nombre","text","span2")}
+        ${inp("Giro o actividad","giro","text","span2")}
+        ${inp("NIT","nit")}${inp("NRC","nrc")}
+        ${inp("Dirección","direccion","text","span2")}
+        ${inp("Teléfono","telefono")}${inp("Correo","correo","email")}
+        ${inp("Quién firma las cotizaciones","responsable")}${inp("Cargo","cargo")}
+      </div>
+      <p class="hint">Estos datos aparecen en el encabezado y la firma de cada cotización.</p>
+    </section>
+    <section class="panel"><h2>Costo real de la hora</h2>
+      <div class="fields">
+        ${inp("Salario mensual del técnico (US$)","salario","number","",'min="0" step="1"')}
+        ${inp("Prestaciones y cargas patronales (%)","prestaciones","number","",'min="0" step="1"')}
+        ${inp("Horas productivas al mes","horasMes","number","",'min="1" step="1"')}
+      </div>
+      <div class="hour-res" id="hour-res"></div>
+      <p class="hint">Las prestaciones incluyen ISSS y AFP patronal, aguinaldo, vacaciones e INSAFORP. 35 % es una estimación de partida; confírmalo con tu contador. De 176 horas del mes, un técnico suele facturar unas 150 a 160.</p>
+    </section>
+    <section class="panel"><h2>Valores predeterminados para cotizar</h2>
+      <div class="fields">
+        ${inp("Gastos indirectos (%)","indirectos","number","",'min="0" step="1"')}
+        ${inp("Imprevistos (%)","imprevistos","number","",'min="0" step="1"')}
+        ${inp("Margen deseado (%)","margen","number","",'min="0" max="90" step="1"')}
+        ${inp("Margen mínimo aceptable (%)","margenMin","number","",'min="0" max="90" step="1"')}
+        ${inp("Validez de cotizaciones (días)","validez","number","",'min="1" step="1"')}
+        ${inp("Plazo de crédito a clientes (días)","plazoCredito","number","",'min="0" step="1"')}
+      </div>
+      <p class="hint">Por debajo del margen mínimo, la calculadora te avisa en amarillo.</p>
+    </section>
+    <section class="panel"><h2>Condiciones de tus cotizaciones</h2>
+      <div class="fields">
+        ${inp("Forma de pago","pago","text","span2")}
+        ${inp("Garantía","garantia","text","span2")}
+      </div>
+    </section>
+  </div>
+  <section class="panel" style="margin-top:16px"><h2>Respaldo de datos</h2>
+    <p class="hint" style="margin-top:8px">Tus datos se guardan en este navegador y en esta computadora. Exporta un respaldo con frecuencia: te sirve si borras el historial del navegador, cambias de computadora o quieres pasar tus datos al celular. Importar un respaldo reemplaza los datos actuales.</p>
+    <div class="row-actions" style="margin-top:12px">
+      <button class="btn primary" data-act="backup-export">Exportar respaldo</button>
+      <label class="btn" for="backup-file" tabindex="0">Importar respaldo</label>
+      <input type="file" id="backup-file" accept=".json,application/json" hidden>
+    </div>
+    <p class="hint">Datos actuales: ${S.cotizaciones.length} cotizaciones y ${S.facturas.length} facturas.</p>
+  </section>
+  <div class="stick-save"><span id="emp-dirty" class="${S.empDirty?"dirty":"saved"}">${S.empDirty?"Cambios sin guardar":""}</span><button class="btn" data-act="emp-undo" ${S.empDirty?"":"disabled"}>Descartar</button><button class="btn primary" data-act="emp-save">Guardar cambios</button></div>`;
+}
+function updateHour(){
+  const e = $("#hour-res"); if(!e) return;
+  const E = S.empDraft, ch = r2(num(E.salario)*(1+num(E.prestaciones)/100)/(num(E.horasMes)||1));
+  e.innerHTML = `<div><small>Costo real por hora</small><b>${money(ch)}</b></div><div><small>Guardado en la calculadora: ${money(num(E.costoHora))}</small></div><button class="btn sm" data-act="emp-hour" data-v="${ch}">Usar ${money(ch)}</button>`;
+}
+
+/* ---------- events ---------- */
+function setPath(obj, path, val){
+  const ks = path.split("."); let o = obj;
+  for(let i=0;i<ks.length-1;i++) o = o[ks[i]];
+  o[ks[ks.length-1]] = val;
+}
+document.addEventListener("input", e=>{
+  const t = e.target, val = t.type === "checkbox" ? t.checked : t.value;
+  if(t.dataset.calc){
+    const p = t.dataset.calc.split(":");
+    if(p.length === 3) S.calc[p[0]][+p[1]][p[2]] = val; else S.calc[p[0]] = val;
+    renderCalcOut();
+  } else if(t.dataset.q){
+    setPath(S.edit, t.dataset.q, val); S.editDirty = true; updateEditor();
+  } else if(t.dataset.inv){
+    const k = t.dataset.inv; S.inv[k] = val;
+    if(k === "fecha" || k === "plazo"){ S.inv.vence = addDays(S.inv.fecha, S.inv.plazo); const v = $("#inv-vence"); if(v) v.value = S.inv.vence; }
+    if(k === "estado" && val === "pagada" && !S.inv.fechaPago){ S.inv.fechaPago = hoy(); const v = $("#inv-fechaPago"); if(v) v.value = S.inv.fechaPago; }
+    updateInvCalc();
+  } else if(t.dataset.emp){
+    S.empDraft[t.dataset.emp] = t.type === "number" ? num(val) : val; S.empDirty = true;
+    const d = $("#emp-dirty"); if(d){ d.className = "dirty"; d.textContent = "Cambios sin guardar"; }
+    const u = $('[data-act="emp-undo"]'); if(u) u.disabled = false;
+    updateHour();
+  } else if(t.id === "mini-costo" || t.id === "mini-pct"){ miniCalc(); }
+});
+document.addEventListener("change", e=>{
+  const t = e.target;
+  if(t.type === "checkbox" || t.tagName === "SELECT"){ /* handled by input for most browsers; ensure */ t.dispatchEvent(new Event("input",{bubbles:true})); }
+}, true);
+
+const armed = new Map();
+function arm(btn, key, label, fn){
+  if(armed.get(key)){ armed.delete(key); fn(); return; }
+  const orig = btn.textContent; btn.classList.add("armed"); btn.textContent = label; armed.set(key, true);
+  setTimeout(()=>{ armed.delete(key); if(btn.isConnected){ btn.classList.remove("armed"); btn.textContent = orig; } }, 4000);
+}
+document.addEventListener("click", async e=>{
+  const el = e.target.closest("[data-act]"); if(!el) return;
+  const a = el.dataset.act;
+  if(a === "inv-close-bg"){ if(e.target === el){ S.inv = null; renderModal(); } return; }
+  switch(a){
+    case "tab": {
+      if(S.tab === "cot" && S.edit && S.editDirty) await guardarEdicion(true);
+      S.tab = el.dataset.tab; S.edit = null; location.hash = S.tab; renderTabs(); renderView(); window.scrollTo(0,0); break;
+    }
+    case "add-row": {
+      const s = el.dataset.sec, E = S.empresa;
+      S.calc[s].push(s==="mo" ? {rol:"", personas:1, horas:0, tarifa:num(E.costoHora)} : s==="mat" ? {desc:"", cant:1, unidad:"u", costo:0, merma:0} : {desc:"", cant:1, unidad:"u", costo:0});
+      renderView(); const i = S.calc[s].length-1; const f = $(`#${s}-${i}-${s==="mo"?"rol":"desc"}`); if(f) f.focus(); break;
+    }
+    case "del-row": S.calc[el.dataset.sec].splice(+el.dataset.i, 1); renderView(); break;
+    case "tarifa-emp": S.calc.mo.forEach(r=>{ if(!/ayudante/i.test(r.rol||"")) r.tarifa = num(S.empresa.costoHora); }); renderView(); toast("Costo por hora actualizado (se respetaron los ayudantes)."); break;
+    case "calc-new": S.calc = calcVacio(S.empresa); renderView(); break;
+    case "calc-example": S.calc = ejemploCalc(S.empresa); renderView(); break;
+    case "to-quote": calcToQuote(); break;
+    case "cot-filter": S.cotFilter = el.dataset.f; renderView(); break;
+    case "fac-filter": S.facFilter = el.dataset.f; renderView(); break;
+    case "open-quote": { const q = S.cotizaciones.find(x=>x.id===el.dataset.id); if(q){ S.edit = clone(q); S.editDirty = false; renderView(); window.scrollTo(0,0); } break; }
+    case "new-quote": {
+      const E = S.empresa;
+      const q = {id:uid(), numero:siguienteNumero(), fecha:hoy(), validez:num(E.validez)||15, estado:"borrador", cliente:{nombre:"",contacto:"",correo:"",telefono:"",direccion:"",nrc:""},
+        titulo:"", lineas:[{desc:"", cant:1, unidad:"servicio", pu:0}], pago:E.pago, plazo:"", garantia:E.garantia, notas:"", costoInterno:0, retencion:false, creada:new Date().toISOString()};
+      S.edit = q; S.editDirty = true; renderView(); window.scrollTo(0,0); break;
+    }
+    case "q-back": if(S.editDirty) await guardarEdicion(true); S.edit = null; renderView(); window.scrollTo(0,0); break;
+    case "q-save": await guardarEdicion(false); break;
+    case "q-add-line": S.edit.lineas.push({desc:"", cant:1, unidad:"u", pu:0}); S.editDirty = true; renderView(); break;
+    case "q-del-line": S.edit.lineas.splice(+el.dataset.i,1); S.editDirty = true; renderView(); break;
+    case "q-pdf": await descargarPDF(); break;
+    case "q-dup": {
+      if(S.editDirty) await guardarEdicion(true);
+      const q = clone(S.edit); q.id = uid(); q.numero = siguienteNumero(); q.fecha = hoy(); q.estado = "borrador"; delete q.ejemplo; q.creada = new Date().toISOString();
+      await guardar("cotizaciones", q.id, q); S.edit = q; S.editDirty = false; renderView(); window.scrollTo(0,0); toast(`Copia creada como ${q.numero}.`); break;
+    }
+    case "q-del": arm(el, "q-del", "Confirmar: eliminar", async ()=>{ const id = S.edit.id; S.edit = null; await borrar("cotizaciones", id); renderView(); toast("Cotización eliminada."); }); break;
+    case "q-to-invoice": {
+      if(S.editDirty) await guardarEdicion(true);
+      const q = S.edit, T = totalesQ(q);
+      if(q.estado !== "aceptada"){ q.estado = "aceptada"; await guardar("cotizaciones", q.id, q); }
+      const inv = nuevaFactura({cliente:q.cliente?.nombre||"", nrc:q.cliente?.nrc||"", tipo:q.cliente?.nrc?"CCF":"FCF", concepto:q.titulo, subtotal:T.sub, retencion:!!q.retencion, cotizacion:q.numero});
+      S.tab = "fac"; S.edit = null; location.hash = "fac"; S.inv = inv; renderTabs(); renderView(); break;
+    }
+    case "new-inv": S.inv = nuevaFactura(); renderModal(); setTimeout(()=>{ const f=$("#inv-numero"); if(f) f.focus(); }, 0); break;
+    case "open-inv": { if(e.target.closest("button")) return; const f = S.facturas.find(x=>x.id===el.dataset.id); if(f){ S.inv = clone(f); renderModal(); } break; }
+    case "inv-close": S.inv = null; renderModal(); break;
+    case "inv-save": {
+      const f = S.inv;
+      if(!String(f.cliente).trim()){ toast("Escribe el nombre del cliente."); $("#inv-cliente")?.focus(); return; }
+      if(num(f.subtotal) <= 0){ toast("Escribe el monto sin IVA."); $("#inv-subtotal")?.focus(); return; }
+      const body = clone(f); delete body._nueva; body.subtotal = num(body.subtotal); body.plazo = num(body.plazo);
+      if(body.estado !== "pagada") body.fechaPago = body.estado === "anulada" ? body.fechaPago : "";
+      const ok = await guardar("facturas", f.id, body);
+      if(ok){ S.inv = null; renderView(); toast("Factura guardada."); }
+      break;
+    }
+    case "inv-del": arm(el, "inv-del", "Confirmar: eliminar", async ()=>{ const id = S.inv.id; S.inv = null; await borrar("facturas", id); renderView(); toast("Factura eliminada."); }); break;
+    case "inv-paid": {
+      const f = S.facturas.find(x=>x.id===el.dataset.id); if(!f) return;
+      const body = clone(f); body.estado = "pagada"; body.fechaPago = hoy();
+      await guardar("facturas", f.id, body); toast(`Factura ${f.numero||""} marcada como pagada.`); break;
+    }
+    case "del-examples": {
+      const col = el.dataset.col;
+      arm(el, "ex-"+col, "Confirmar: borrar ejemplos", async ()=>{ for(const x of S[col].filter(x=>x.ejemplo)) await borrar(col, x.id); toast("Ejemplos borrados."); });
+      break;
+    }
+    case "emp-hour": S.empDraft.costoHora = num(el.dataset.v); S.empDirty = true; updateHour(); { const d=$("#emp-dirty"); if(d){ d.className="dirty"; d.textContent="Cambios sin guardar"; } const u=$('[data-act="emp-undo"]'); if(u) u.disabled=false; } break;
+    case "emp-undo": S.empDraft = null; S.empDirty = false; renderView(); break;
+    case "emp-save": {
+      const ok = await guardarEmpresa(S.empDraft);
+      if(ok){ S.empresa = {...DEF_EMP, ...clone(S.empDraft)}; S.empDirty = false; S.empDraft = null; renderHeader(); renderView(); toast("Datos de la empresa guardados."); }
+      break;
+    }
+    case "scroll": { e.preventDefault(); const t = document.getElementById(el.dataset.to); if(t) t.scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block:"start"}); break; }
+  }
+});
+document.addEventListener("keydown", e=>{ if(e.key === "Escape" && S.inv){ S.inv = null; renderModal(); } });
+
+const _rv = renderView;
+renderView = function(){ _rv(); if(S.tab === "empresa") updateHour(); };
+
+document.addEventListener("click", e=>{
+  const el = e.target.closest("[data-act]"); if(!el) return;
+  if(el.dataset.act === "backup-export") exportarRespaldo();
+});
+document.addEventListener("change", e=>{
+  if(e.target.id === "backup-file" && e.target.files && e.target.files[0]){ importarRespaldo(e.target.files[0]); e.target.value = ""; }
+});
+document.addEventListener("keydown", e=>{
+  if((e.key === "Enter" || e.key === " ") && e.target.matches('label[for="backup-file"]')){ e.preventDefault(); $("#backup-file").click(); }
+});
+
+init();
+})();
+</script>
+</body>
+</html>
